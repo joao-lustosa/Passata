@@ -20,7 +20,7 @@ import Observation
     init(
         durationProvider: any DurationProviding,
         dateProvider: any DateProviding = SystemDateProvider(),
-        persister: any TimerStatePersisting = NoOpTimerStateStore()
+        persister: any TimerStatePersisting = UserDefaultsTimerStateStore()
     ) {
         self.durationProvider = durationProvider
         self.dateProvider = dateProvider

@@ -1,23 +1,19 @@
 import SwiftUI
 
-/// Resolves the semantic timer accents from any phase whose raw values match the domain phase names.
-/// The generic constraint keeps this theme-only branch independent from the future `Phase` domain type.
 enum PassataPalette {
-    static func accent<Phase>(for phase: Phase) -> Color where Phase: RawRepresentable, Phase.RawValue == String {
-        return switch phase.rawValue {
-        case "focus": Color("PassataFocus")
-        case "shortBreak": Color("PassataShortBreak")
-        case "longBreak": Color("PassataLongBreak")
-        default: fatalError("Unexpected phase raw value: \(phase.rawValue)")
+    static func accent(for phase: Phase) -> Color {
+        switch phase {
+        case .focus: Color("PassataFocus")
+        case .shortBreak: Color("PassataShortBreak")
+        case .longBreak: Color("PassataLongBreak")
         }
     }
 
-    static func accentDeep<Phase>(for phase: Phase) -> Color where Phase: RawRepresentable, Phase.RawValue == String {
-        return switch phase.rawValue {
-        case "focus": Color("PassataFocusDeep")
-        case "shortBreak": Color("PassataShortBreakDeep")
-        case "longBreak": Color("PassataLongBreakDeep")
-        default: fatalError("Unexpected phase raw value: \(phase.rawValue)")
+    static func accentDeep(for phase: Phase) -> Color {
+        switch phase {
+        case .focus: Color("PassataFocusDeep")
+        case .shortBreak: Color("PassataShortBreakDeep")
+        case .longBreak: Color("PassataLongBreakDeep")
         }
     }
 

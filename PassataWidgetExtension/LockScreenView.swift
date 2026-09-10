@@ -89,20 +89,10 @@ struct LockScreenView: View {
                 Capsule()
                     .fill(track)
                     .overlay(alignment: .leading) {
-                        Capsule().fill(accent).frame(width: proxy.size.width * staticProgress)
+                        Capsule().fill(accent).frame(width: proxy.size.width * CGFloat(state.render.staticProgress))
                     }
             }
             .frame(height: 6)
-        }
-    }
-
-    private var staticProgress: CGFloat {
-        switch state.render {
-        case .complete: 1
-        case .idle: 0
-        case let .paused(remaining, duration):
-            duration > 0 ? 1 - CGFloat(remaining) / CGFloat(duration) : 0
-        case .running: 0
         }
     }
 

@@ -63,7 +63,7 @@ struct TimerScreen: View {
                 } else {
                     let sheetGlassTint = colorScheme == .dark
                         ? Color(red: 28 / 255, green: 28 / 255, blue: 32 / 255).opacity(0.78)
-                        : Color(red: 250 / 255, green: 248 / 255, blue: 246 / 255).opacity(0.80)
+                        : Color(red: 250 / 255, green: 248 / 255, blue: 246 / 255).opacity(0.94)
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
                         .fill(.clear)
                         .glassEffect(.regular.tint(sheetGlassTint), in: .rect(cornerRadius: 32))

@@ -115,9 +115,12 @@ struct CompletionOverlayView: View {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(PassataPalette.overlayCardRTBackground())
         } else {
+            let overlayCardGlassTint = colorScheme == .dark
+                ? Color(red: 40 / 255, green: 40 / 255, blue: 46 / 255).opacity(0.78)
+                : Color.white.opacity(0.94)
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(.clear)
-                .glassEffect(.regular, in: .rect(cornerRadius: 28))
+                .glassEffect(.regular.tint(overlayCardGlassTint), in: .rect(cornerRadius: 28))
         }
     }
 }

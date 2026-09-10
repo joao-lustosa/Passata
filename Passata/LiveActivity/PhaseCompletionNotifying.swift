@@ -9,6 +9,8 @@ protocol PhaseCompletionNotifying {
 struct SystemPhaseCompletionNotifier: PhaseCompletionNotifying {
     private let notificationIdentifier = "phase-completion"
 
+    nonisolated init() {}
+
     func schedule(at phaseEnd: Date, phase: Phase) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()

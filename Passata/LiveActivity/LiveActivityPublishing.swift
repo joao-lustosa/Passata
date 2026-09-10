@@ -17,6 +17,8 @@ extension LiveActivityPublishing {
 final class SystemLiveActivityPublisher: LiveActivityPublishing {
     private var currentActivity: Activity<PassataActivityAttributes>?
 
+    nonisolated init() {}
+
     func hasActiveActivity() async -> Bool {
         guard let found = Activity<PassataActivityAttributes>.activities.first else { return false }
         currentActivity = found

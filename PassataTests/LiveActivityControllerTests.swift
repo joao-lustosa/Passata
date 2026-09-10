@@ -24,7 +24,10 @@ final class LiveActivityControllerTests: XCTestCase {
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: running, kind: .startedNext)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: .idle(phaseDurationSeconds: 60), kind: .reset)
 
-        await waitUntil { publisher.snapshot().updateCount == 5 && publisher.snapshot().endCount == 1 }
+        await waitUntil {
+            let snapshot = publisher.snapshot()
+            return snapshot.updateCount == 5 && snapshot.endCount == 1
+        }
         XCTAssertEqual(publisher.snapshot().updateCount, 5)
         XCTAssertEqual(publisher.snapshot().endCount, 1)
         XCTAssertEqual(

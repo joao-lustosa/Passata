@@ -48,6 +48,7 @@ struct ControlsBarView: View {
 
                 Divider()
                     .padding(.vertical, 11)
+                    .frame(height: 24)
 
                 Button(action: engine.onSkip) {
                     Label("Skip", systemImage: "forward.fill")

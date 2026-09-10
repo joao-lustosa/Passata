@@ -139,6 +139,118 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(completionCount, 1)
     }
 
+    func testInitExpiredSnapshotPublishesCompletedStateChange() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = FakeDateProvider(now: now)
+        let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
+            phase: .focus,
+            status: .running,
+            sessionIndex: 2,
+            endDate: now.addingTimeInterval(-1),
+            pausedRemaining: nil
+        ))
+        var received: (Phase, Int, RenderState, TimerEngine.TransitionKind)?
+
+        let engine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: clock,
+            persister: store,
+            autoStartNext: false,
+            onStateChange: { phase, sessionIndex, render, kind in
+                received = (phase, sessionIndex, render, kind)
+            }
+        )
+
+        XCTAssertEqual(engine.status, .complete)
+        XCTAssertEqual(received?.0, .focus)
+        XCTAssertEqual(received?.1, 2)
+        if case .complete? = received?.2 {
+            // Expected snapshot-restore render state.
+        } else {
+            XCTFail("expired snapshot should publish a complete render state")
+        }
+        if case .completed? = received?.3 {
+            // Expected completion transition.
+        } else {
+            XCTFail("expired snapshot should publish a completed transition")
+        }
+    }
+
+    func testStateChangeHookPublishesEachTransitionRenderState() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = FakeDateProvider(now: now)
+        var events: [(TimerEngine.TransitionKind, Phase, Int, RenderState)] = []
+        let engine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: clock,
+            persister: RecordingTimerStateStore(),
+            autoStartNext: false,
+            onStateChange: { phase, sessionIndex, render, kind in
+                events.append((kind, phase, sessionIndex, render))
+            }
+        )
+
+        engine.start()
+        guard case let .running(phaseStart, phaseEnd) = events[0].3 else {
+            return XCTFail("start should publish a running render state")
+        }
+        XCTAssertEqual(phaseStart, now)
+        XCTAssertEqual(phaseEnd, now.addingTimeInterval(120))
+
+        clock.now = now.addingTimeInterval(30)
+        engine.pause()
+        guard case let .paused(remaining, duration) = events[1].3 else {
+            return XCTFail("pause should publish a paused render state")
+        }
+        XCTAssertEqual(remaining, 90)
+        XCTAssertEqual(duration, 120)
+
+        clock.now = now.addingTimeInterval(100)
+        engine.resume()
+        guard case let .running(resumedStart, resumedEnd) = events[2].3 else {
+            return XCTFail("resume should publish a running render state")
+        }
+        XCTAssertEqual(resumedStart, now.addingTimeInterval(70))
+        XCTAssertEqual(resumedEnd, now.addingTimeInterval(190))
+
+        engine.onReset()
+        guard case let .idle(durationAfterReset) = events[3].3 else {
+            return XCTFail("reset should publish an idle render state")
+        }
+        XCTAssertEqual(durationAfterReset, 120)
+
+        engine.onSkip()
+        guard case let .idle(durationAfterSkip) = events[4].3 else {
+            return XCTFail("skip should publish an idle render state")
+        }
+        XCTAssertEqual(durationAfterSkip, 60)
+
+        engine.onStartNext()
+        guard case let .running(nextStart, nextEnd) = events[5].3 else {
+            return XCTFail("start-next should publish a running render state")
+        }
+        XCTAssertEqual(nextStart, clock.now)
+        XCTAssertEqual(nextEnd, clock.now.addingTimeInterval(120))
+
+        clock.now = nextEnd.addingTimeInterval(1)
+        engine.checkForCompletion()
+        guard case .complete = events[6].3 else {
+            return XCTFail("completion should publish a complete render state")
+        }
+        let kinds = events.map { event in
+            switch event.0 {
+            case .started: "started"
+            case .resumed: "resumed"
+            case .paused: "paused"
+            case .completed: "completed"
+            case .skipped: "skipped"
+            case .startedNext: "startedNext"
+            case .reset: "reset"
+            }
+        }
+        XCTAssertEqual(kinds, ["started", "paused", "resumed", "reset", "skipped", "startedNext", "completed"])
+    }
+
     func testInitExpiredSnapshotRespectsDisabledAutoAdvance() async {
         let now = Date(timeIntervalSinceReferenceDate: 1_000)
         let clock = FakeDateProvider(now: now)

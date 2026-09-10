@@ -8,13 +8,15 @@ struct PassataWidgetExtension: Widget {
         ActivityConfiguration(for: PassataActivityAttributes.self) { context in
             LockScreenView(state: context.state)
                 .environment(\.colorScheme, .dark)
-        } dynamicIsland: { _ in
+        } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) { EmptyView() }
             } compactLeading: {
-                EmptyView()
+                DynamicIslandCompactLeadingView(state: context.state)
+                    .environment(\.colorScheme, .dark)
             } compactTrailing: {
-                EmptyView()
+                DynamicIslandCompactTrailingView(state: context.state)
+                    .environment(\.colorScheme, .dark)
             } minimal: {
                 EmptyView()
             }

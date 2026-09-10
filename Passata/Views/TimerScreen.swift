@@ -8,6 +8,7 @@ struct TimerScreen: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.passataDebugReduceTransparency) private var debugReduceTransparency
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -58,7 +59,7 @@ struct TimerScreen: View {
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(32)
             .presentationBackground {
-                if reduceTransparency {
+                if reduceTransparency || debugReduceTransparency {
                     let sheetShape = UnevenRoundedRectangle(
                         cornerRadii: .init(
                             topLeading: 32,

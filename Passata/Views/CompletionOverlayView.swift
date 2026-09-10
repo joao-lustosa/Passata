@@ -6,6 +6,7 @@ struct CompletionOverlayView: View {
     let engine: TimerEngine
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.passataDebugReduceTransparency) private var debugReduceTransparency
     @Environment(\.colorScheme) private var colorScheme
 
     @ScaledMetric(relativeTo: .title) private var titleFontSize = 20.0
@@ -111,7 +112,7 @@ struct CompletionOverlayView: View {
 
     @ViewBuilder
     private var cardBackground: some View {
-        if reduceTransparency {
+        if reduceTransparency || debugReduceTransparency {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(PassataPalette.overlayCardRTBackground())
                 .overlay {

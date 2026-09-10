@@ -59,7 +59,24 @@ struct TimerScreen: View {
             .presentationCornerRadius(32)
             .presentationBackground {
                 if reduceTransparency {
-                    PassataPalette.sheetRTBackground()
+                    let sheetShape = UnevenRoundedRectangle(
+                        cornerRadii: .init(
+                            topLeading: 32,
+                            bottomLeading: 0,
+                            bottomTrailing: 0,
+                            topTrailing: 32
+                        ),
+                        style: .continuous
+                    )
+                    sheetShape
+                        .fill(PassataPalette.sheetRTBackground())
+                        .overlay {
+                            sheetShape.strokeBorder(
+                                colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.05),
+                                lineWidth: 0.5
+                            )
+                        }
+                        .shadow(color: .black.opacity(0.2), radius: 20, y: -10)
                 } else {
                     let sheetGlassTint = colorScheme == .dark
                         ? Color(red: 28 / 255, green: 28 / 255, blue: 32 / 255).opacity(0.78)

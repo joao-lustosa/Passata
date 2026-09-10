@@ -14,8 +14,8 @@ final class LiveActivityControllerTests: XCTestCase {
         )
         let paused = RenderState.paused(remainingSeconds: 50, phaseDurationSeconds: 120)
         controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .started)
-        await waitUntil { publisher.requestCount == 1 }
-        XCTAssertEqual(publisher.requestCount, 1)
+        await waitUntil { publisher.snapshot().requestCount == 1 }
+        XCTAssertEqual(publisher.snapshot().requestCount, 1)
 
         controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .resumed)
         controller.submit(phase: .focus, sessionIndex: 1, render: paused, kind: .paused)
@@ -24,11 +24,11 @@ final class LiveActivityControllerTests: XCTestCase {
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: running, kind: .startedNext)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: .idle(phaseDurationSeconds: 60), kind: .reset)
 
-        await waitUntil { publisher.updateCount == 5 && publisher.endCount == 1 }
-        XCTAssertEqual(publisher.updateCount, 5)
-        XCTAssertEqual(publisher.endCount, 1)
+        await waitUntil { publisher.snapshot().updateCount == 5 && publisher.snapshot().endCount == 1 }
+        XCTAssertEqual(publisher.snapshot().updateCount, 5)
+        XCTAssertEqual(publisher.snapshot().endCount, 1)
         XCTAssertEqual(
-            publisher.actions,
+            publisher.snapshot().actions,
             ["request", "update", "update", "update", "update", "update", "end"]
         )
     }
@@ -43,7 +43,7 @@ final class LiveActivityControllerTests: XCTestCase {
             status: .idle,
             render: .idle(phaseDurationSeconds: 120)
         )
-        await waitUntil { publisher.endCount == 1 }
+        await waitUntil { publisher.snapshot().endCount == 1 }
 
         publisher.setActive(true)
         await controller.reconcileOnLaunch(
@@ -55,7 +55,7 @@ final class LiveActivityControllerTests: XCTestCase {
                 phaseEnd: Date(timeIntervalSinceReferenceDate: 220)
             )
         )
-        XCTAssertEqual(publisher.updateCount, 1)
+        XCTAssertEqual(publisher.snapshot().updateCount, 1)
     }
 
     private func waitUntil(
@@ -83,15 +83,15 @@ final class PhaseCompletionControllerTests: XCTestCase {
         controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .started)
         controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .resumed)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: running, kind: .startedNext)
-        await waitUntil { notifier.scheduleCount == 3 }
-        XCTAssertEqual(notifier.scheduledPhases, [.focus, .focus, .shortBreak])
+        await waitUntil { notifier.snapshot().scheduleCount == 3 }
+        XCTAssertEqual(notifier.snapshot().scheduledPhases, [.focus, .focus, .shortBreak])
 
         controller.submit(phase: .focus, sessionIndex: 1, render: staticRender, kind: .paused)
         controller.submit(phase: .focus, sessionIndex: 1, render: staticRender, kind: .reset)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: .idle(phaseDurationSeconds: 60), kind: .skipped)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: .complete, kind: .completed)
-        await waitUntil { notifier.cancelCount == 4 }
-        XCTAssertEqual(notifier.cancelCount, 4)
+        await waitUntil { notifier.snapshot().cancelCount == 4 }
+        XCTAssertEqual(notifier.snapshot().cancelCount, 4)
     }
 
     private func waitUntil(
@@ -106,6 +106,13 @@ final class PhaseCompletionControllerTests: XCTestCase {
 }
 
 private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
+    struct Snapshot {
+        let requestCount: Int
+        let updateCount: Int
+        let endCount: Int
+        let actions: [String]
+    }
+
     private let lock = NSLock()
     private(set) var requestCount = 0
     private(set) var updateCount = 0
@@ -119,6 +126,12 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 
     func setActive(_ value: Bool) {
         lock.withLock { active = value }
+    }
+
+    func snapshot() -> Snapshot {
+        lock.withLock {
+            Snapshot(requestCount: requestCount, updateCount: updateCount, endCount: endCount, actions: actions)
+        }
     }
 
     func hasActiveActivity() async -> Bool {
@@ -150,10 +163,22 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 }
 
 private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
+    struct Snapshot {
+        let scheduleCount: Int
+        let cancelCount: Int
+        let scheduledPhases: [Phase]
+    }
+
     private let lock = NSLock()
     private(set) var scheduleCount = 0
     private(set) var cancelCount = 0
     private(set) var scheduledPhases: [Phase] = []
+
+    func snapshot() -> Snapshot {
+        lock.withLock {
+            Snapshot(scheduleCount: scheduleCount, cancelCount: cancelCount, scheduledPhases: scheduledPhases)
+        }
+    }
 
     func schedule(at phaseEnd: Date, phase: Phase) async {
         lock.withLock {

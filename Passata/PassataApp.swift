@@ -15,8 +15,8 @@ struct PassataApp: App {
     init() {
         let store = TimerSettingsStore(persister: UserDefaultsSettingsStore())
         let feedback = SystemCompletionFeedback()
-        let liveActivityController = LiveActivityController()
-        let phaseCompletionController = PhaseCompletionController()
+        let liveActivityController = LiveActivityController(publisher: SystemLiveActivityPublisher())
+        let phaseCompletionController = PhaseCompletionController(notifier: SystemPhaseCompletionNotifier())
         let engine = TimerEngine(
             durationProvider: store,
             dateProvider: SystemDateProvider(),
@@ -42,6 +42,7 @@ struct PassataApp: App {
         )
         store.engine = engine
 
+        // Benign race with a queued cold-launch .completed event, if any: every interleaving converges to the correct state, worst case one redundant update() call.
         Task {
             await liveActivityController.reconcileOnLaunch(
                 phase: engine.phase,

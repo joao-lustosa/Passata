@@ -3,7 +3,7 @@ import Foundation
 
 protocol LiveActivityPublishing {
     func hasActiveActivity() async -> Bool
-    func request(_ content: PassataActivityAttributes.ContentState, staleDate: Date?) throws
+    nonisolated func request(_ content: PassataActivityAttributes.ContentState, staleDate: Date?) throws
     func update(_ content: PassataActivityAttributes.ContentState, staleDate: Date?) async
     func end(_ content: PassataActivityAttributes.ContentState?, dismissalPolicy: ActivityUIDismissalPolicy) async
 }

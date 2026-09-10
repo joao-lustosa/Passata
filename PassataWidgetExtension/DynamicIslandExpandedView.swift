@@ -85,6 +85,7 @@ struct DynamicIslandExpandedView: View {
         }
     }
 
+    // Non-interactive placeholder -- AppIntent-driven pause/resume deferred, see architect-spec.md section 14.6.
     private var pauseControl: some View {
         let isRunning: Bool
         let label: String

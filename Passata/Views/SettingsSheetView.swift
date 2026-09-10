@@ -5,6 +5,7 @@ struct SettingsSheetView: View {
     let onClose: () -> Void
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.passataDebugReduceTransparency) private var debugReduceTransparency
     @Environment(\.colorScheme) private var colorScheme
 
     @ScaledMetric(relativeTo: .title) private var titleFontSize = 20.0
@@ -145,7 +146,7 @@ struct SettingsSheetView: View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(PassataPalette.settingsGroupBackground(
                 colorScheme: colorScheme,
-                reduceTransparency: reduceTransparency
+                reduceTransparency: reduceTransparency || debugReduceTransparency
             ))
     }
 }

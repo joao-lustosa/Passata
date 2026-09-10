@@ -10,6 +10,7 @@ struct ProgressRingView: View {
     @ScaledMetric(relativeTo: .largeTitle) private var pausedTagFontSize = 13.0
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.passataDebugReduceTransparency) private var debugReduceTransparency
 
     private let strokeWidth = 16.0
 
@@ -45,7 +46,7 @@ struct ProgressRingView: View {
                 .glassEffect(.regular.tint(accent), in: GlassHaloShape(lineWidth: 24))
 
             Circle()
-                .stroke(Color("PassataTrack").opacity(reduceTransparency ? 1 : 0.55), lineWidth: strokeWidth)
+                .stroke(Color("PassataTrack").opacity(reduceTransparency || debugReduceTransparency ? 1 : 0.55), lineWidth: strokeWidth)
 
             Circle()
                 .trim(from: 0, to: progress)

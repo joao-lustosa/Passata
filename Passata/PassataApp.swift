@@ -33,6 +33,7 @@ struct PassataApp: App {
     var body: some Scene {
         WindowGroup {
             TimerScreen(engine: engine, store: store)
+                .modifier(DebugEnvironmentOverrides())
         }
     }
 }

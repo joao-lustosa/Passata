@@ -20,11 +20,15 @@ import Observation
     init(
         durationProvider: any DurationProviding,
         dateProvider: any DateProviding = SystemDateProvider(),
-        persister: any TimerStatePersisting = UserDefaultsTimerStateStore()
+        persister: any TimerStatePersisting = UserDefaultsTimerStateStore(),
+        autoStartNext: Bool = true,
+        onPhaseCompleted: (() -> Void)? = nil
     ) {
         self.durationProvider = durationProvider
         self.dateProvider = dateProvider
         self.persister = persister
+        self.autoStartNext = autoStartNext
+        self.onPhaseCompleted = onPhaseCompleted
 
         if let snapshot = persister.load() {
             phase = snapshot.phase

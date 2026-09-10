@@ -116,6 +116,54 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(engine.remainingSeconds, 0)
     }
 
+    func testInitExpiredSnapshotInvokesCompletionCallback() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = FakeDateProvider(now: now)
+        let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
+            phase: .focus,
+            status: .running,
+            sessionIndex: 2,
+            endDate: now.addingTimeInterval(-1),
+            pausedRemaining: nil
+        ))
+        var completionCount = 0
+
+        let engine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: clock,
+            persister: store,
+            onPhaseCompleted: { completionCount += 1 }
+        )
+
+        XCTAssertEqual(engine.status, .complete)
+        XCTAssertEqual(completionCount, 1)
+    }
+
+    func testInitExpiredSnapshotRespectsDisabledAutoAdvance() async {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = FakeDateProvider(now: now)
+        let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
+            phase: .shortBreak,
+            status: .running,
+            sessionIndex: 2,
+            endDate: now.addingTimeInterval(-1),
+            pausedRemaining: nil
+        ))
+
+        let engine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: clock,
+            persister: store,
+            autoStartNext: false
+        )
+
+        XCTAssertEqual(engine.status, .complete)
+        XCTAssertEqual(engine.phase, .shortBreak)
+        try? await Task.sleep(for: .seconds(1.6))
+        XCTAssertEqual(engine.status, .complete)
+        XCTAssertEqual(engine.phase, .shortBreak)
+    }
+
     func testInitRestoresPausedAndIdleSnapshots() {
         let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
         let pausedStore = RecordingTimerStateStore(snapshot: TimerSnapshot(

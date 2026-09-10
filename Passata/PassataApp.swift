@@ -14,18 +14,17 @@ struct PassataApp: App {
 
     init() {
         let store = TimerSettingsStore(persister: UserDefaultsSettingsStore())
+        let feedback = SystemCompletionFeedback()
         let engine = TimerEngine(
             durationProvider: store,
             dateProvider: SystemDateProvider(),
-            persister: UserDefaultsTimerStateStore()
+            persister: UserDefaultsTimerStateStore(),
+            autoStartNext: store.settings.autoStartNext,
+            onPhaseCompleted: { [store] in
+                feedback.play(soundOn: store.settings.soundOn, hapticsOn: store.settings.hapticsOn)
+            }
         )
         store.engine = engine
-        engine.autoStartNext = store.settings.autoStartNext
-
-        let feedback = SystemCompletionFeedback()
-        engine.onPhaseCompleted = { [store] in
-            feedback.play(soundOn: store.settings.soundOn, hapticsOn: store.settings.hapticsOn)
-        }
 
         _store = State(initialValue: store)
         _engine = State(initialValue: engine)

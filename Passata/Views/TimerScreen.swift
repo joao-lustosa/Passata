@@ -6,6 +6,7 @@ struct TimerScreen: View {
 
     @State private var settingsOpen = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     var body: some View {
@@ -60,9 +61,12 @@ struct TimerScreen: View {
                 if reduceTransparency {
                     PassataPalette.sheetRTBackground()
                 } else {
+                    let sheetGlassTint = colorScheme == .dark
+                        ? Color(red: 28 / 255, green: 28 / 255, blue: 32 / 255).opacity(0.78)
+                        : Color(red: 250 / 255, green: 248 / 255, blue: 246 / 255).opacity(0.80)
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
                         .fill(.clear)
-                        .glassEffect(.regular, in: .rect(cornerRadius: 32))
+                        .glassEffect(.regular.tint(sheetGlassTint), in: .rect(cornerRadius: 32))
                 }
             }
         }

@@ -71,7 +71,9 @@ struct LockScreenView: View {
 
     private var timeView: some View {
         timeContent
-            .font(.system(size: 46, weight: .light, design: .monospaced))
+            .font(.system(size: 46, weight: .light))
+            .monospacedDigit()
+            .tracking(-1.5)
             .foregroundStyle(ink)
     }
 

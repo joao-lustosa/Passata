@@ -15,6 +15,8 @@ struct PassataApp: App {
     init() {
         let store = TimerSettingsStore(persister: UserDefaultsSettingsStore())
         let feedback = SystemCompletionFeedback()
+        let liveActivityController = LiveActivityController(publisher: SystemLiveActivityPublisher())
+        let phaseCompletionController = PhaseCompletionController(notifier: SystemPhaseCompletionNotifier())
         let engine = TimerEngine(
             durationProvider: store,
             dateProvider: SystemDateProvider(),
@@ -22,9 +24,33 @@ struct PassataApp: App {
             autoStartNext: store.settings.autoStartNext,
             onPhaseCompleted: { [store] in
                 feedback.play(soundOn: store.settings.soundOn, hapticsOn: store.settings.hapticsOn)
+            },
+            onStateChange: { phase, sessionIndex, render, kind in
+                liveActivityController.submit(
+                    phase: phase,
+                    sessionIndex: sessionIndex,
+                    render: render,
+                    kind: kind
+                )
+                phaseCompletionController.submit(
+                    phase: phase,
+                    sessionIndex: sessionIndex,
+                    render: render,
+                    kind: kind
+                )
             }
         )
         store.engine = engine
+
+        // Benign race with a queued cold-launch .completed event, if any: every interleaving converges to the correct state, worst case one redundant update() call.
+        Task {
+            await liveActivityController.reconcileOnLaunch(
+                phase: engine.phase,
+                sessionIndex: engine.sessionIndex,
+                status: engine.status,
+                render: engine.currentRenderState
+            )
+        }
 
         _store = State(initialValue: store)
         _engine = State(initialValue: engine)

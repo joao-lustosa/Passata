@@ -68,7 +68,11 @@ struct DynamicIslandExpandedView: View {
     private var progressView: some View {
         switch state.render {
         case let .running(phaseStart, phaseEnd):
-            ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false)
+            ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false) {
+                EmptyView()
+            } currentValueLabel: {
+                EmptyView()
+            }
                 .tint(accent)
                 .progressViewStyle(.linear)
         default:

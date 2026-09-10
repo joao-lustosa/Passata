@@ -51,7 +51,11 @@ struct LockScreenView: View {
                 }
             }
             progressView
-            sessionDots
+            LiveActivitySessionDotsView(
+                phase: state.phase,
+                sessionIndex: state.sessionIndex,
+                accent: accent
+            )
         }
         .padding(.vertical, 15)
         .padding(.horizontal, 18)
@@ -81,7 +85,11 @@ struct LockScreenView: View {
     private var progressView: some View {
         switch state.render {
         case let .running(phaseStart, phaseEnd):
-            ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false)
+            ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false) {
+                EmptyView()
+            } currentValueLabel: {
+                EmptyView()
+            }
                 .tint(accent)
                 .progressViewStyle(.linear)
         default:
@@ -93,26 +101,6 @@ struct LockScreenView: View {
                     }
             }
             .frame(height: 6)
-        }
-    }
-
-    private var sessionDots: some View {
-        let filledCount = state.phase == .focus ? state.sessionIndex - 1 : state.sessionIndex
-        return HStack(spacing: 5) {
-            ForEach(1...4, id: \.self) { dotNumber in
-                let filled = dotNumber <= filledCount
-                let current = state.phase == .focus && dotNumber == state.sessionIndex && !filled
-                Circle()
-                    .fill(filled ? accent : Color.clear)
-                    .overlay {
-                        if current {
-                            Circle().stroke(accent, lineWidth: 1.5)
-                        } else if !filled {
-                            Circle().stroke(Color.white.opacity(0.42), lineWidth: 1.5)
-                        }
-                    }
-                    .frame(width: 6, height: 6)
-            }
         }
     }
 

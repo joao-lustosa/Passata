@@ -15,7 +15,7 @@ struct TopBarView: View {
             Spacer()
 
             Button(action: onSettingsTapped) {
-                Image(systemName: "gearshape")
+                Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(Color("PassataInk2"))
                     .frame(width: 44, height: 44)

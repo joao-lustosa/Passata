@@ -105,10 +105,11 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXBuildFile section */
-		27ADB00A3050F9E100497436 /* PassataWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 27ADB0013050F9E100497436 /* PassataWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		27ADB00A3050F9E100497436 /* PassataWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 27ADB0013050F9E100497436 /* PassataWidgetExtension.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		27ADB0103050F9E100497436 /* Phase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ADB0143050F9E100497436 /* Phase.swift */; };
 		27ADB0113050F9E100497436 /* PassataActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ADB0153050F9E100497436 /* PassataActivityAttributes.swift */; };
 		27ADB0123050F9E100497436 /* PassataPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ADB0163050F9E100497436 /* PassataPalette.swift */; };
+		27ADB01B3050F9E100497436 /* RenderState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ADB01C3050F9E100497436 /* RenderState.swift */; };
 		27ADB0133050F9E100497436 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 27ADB0173050F9E100497436 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -348,6 +349,7 @@
 				27ADB0103050F9E100497436 /* Phase.swift in Sources */,
 				27ADB0113050F9E100497436 /* PassataActivityAttributes.swift in Sources */,
 				27ADB0123050F9E100497436 /* PassataPalette.swift in Sources */,
+				27ADB01B3050F9E100497436 /* RenderState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -358,11 +360,15 @@
 		27ADB0153050F9E100497436 /* PassataActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/LiveActivity/PassataActivityAttributes.swift; sourceTree = "<group>"; };
 		27ADB0163050F9E100497436 /* PassataPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Theme/PassataPalette.swift; sourceTree = "<group>"; };
 		27ADB0173050F9E100497436 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Passata/Theme/Assets.xcassets; sourceTree = "<group>"; };
+		27ADB01C3050F9E100497436 /* RenderState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Timer/RenderState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section (shared extension files) */
 
 /* Begin PBXTargetDependency section */
 		27ADB0193050F9E100497436 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+			);
 			target = 27ADB0023050F9E100497436 /* PassataWidgetExtension */;
 			targetProxy = 27ADB0183050F9E100497436 /* PBXContainerItemProxy */;
 		};
@@ -507,6 +513,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = "PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -552,6 +560,8 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = "PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

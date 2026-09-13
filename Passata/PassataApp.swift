@@ -69,5 +69,8 @@ struct PassataApp: App {
                 .modifier(DebugEnvironmentOverrides())
                 .frame(minWidth: 420, idealWidth: 500, minHeight: 620, idealHeight: 760)
         }
+        #if os(macOS)
+        .windowStyle(.hiddenTitleBar)
+        #endif
     }
 }

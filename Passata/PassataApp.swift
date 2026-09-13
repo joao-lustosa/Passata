@@ -15,8 +15,26 @@ struct PassataApp: App {
     init() {
         let store = TimerSettingsStore(persister: UserDefaultsSettingsStore())
         let feedback = SystemCompletionFeedback()
+        #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
         let liveActivityController = LiveActivityController(publisher: SystemLiveActivityPublisher())
         let phaseCompletionController = PhaseCompletionController(notifier: SystemPhaseCompletionNotifier())
+        let onStateChange: ((_ phase: Phase, _ sessionIndex: Int, _ render: RenderState, _ kind: TimerEngine.TransitionKind) -> Void)? = { phase, sessionIndex, render, kind in
+            liveActivityController.submit(
+                phase: phase,
+                sessionIndex: sessionIndex,
+                render: render,
+                kind: kind
+            )
+            phaseCompletionController.submit(
+                phase: phase,
+                sessionIndex: sessionIndex,
+                render: render,
+                kind: kind
+            )
+        }
+        #else
+        let onStateChange: ((_ phase: Phase, _ sessionIndex: Int, _ render: RenderState, _ kind: TimerEngine.TransitionKind) -> Void)? = nil
+        #endif
         let engine = TimerEngine(
             durationProvider: store,
             dateProvider: SystemDateProvider(),
@@ -25,23 +43,11 @@ struct PassataApp: App {
             onPhaseCompleted: { [store] in
                 feedback.play(soundOn: store.settings.soundOn, hapticsOn: store.settings.hapticsOn)
             },
-            onStateChange: { phase, sessionIndex, render, kind in
-                liveActivityController.submit(
-                    phase: phase,
-                    sessionIndex: sessionIndex,
-                    render: render,
-                    kind: kind
-                )
-                phaseCompletionController.submit(
-                    phase: phase,
-                    sessionIndex: sessionIndex,
-                    render: render,
-                    kind: kind
-                )
-            }
+            onStateChange: onStateChange
         )
         store.engine = engine
 
+        #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
         // Benign race with a queued cold-launch .completed event, if any: every interleaving converges to the correct state, worst case one redundant update() call.
         Task {
             await liveActivityController.reconcileOnLaunch(
@@ -51,6 +57,7 @@ struct PassataApp: App {
                 render: engine.currentRenderState
             )
         }
+        #endif
 
         _store = State(initialValue: store)
         _engine = State(initialValue: engine)
@@ -60,6 +67,10 @@ struct PassataApp: App {
         WindowGroup {
             TimerScreen(engine: engine, store: store)
                 .modifier(DebugEnvironmentOverrides())
+                .frame(minWidth: 420, idealWidth: 500, minHeight: 620, idealHeight: 760)
         }
+        #if os(macOS)
+        .windowStyle(.hiddenTitleBar)
+        #endif
     }
 }

@@ -1,0 +1,1 @@
+The macOS icon is a placeholder reusing the light iOS artwork. The asset catalog's `mac` idiom does not support the iOS-style Any/Dark appearance variants; a proper Any/Dark Mac icon requires Apple's Icon Composer tool and is deferred to a future dedicated Mac icon design pass.

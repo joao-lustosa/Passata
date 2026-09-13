@@ -20,6 +20,10 @@ struct TimerScreen: View {
                     TopBarView(engine: engine) {
                         settingsOpen = true
                     }
+                    #if os(macOS)
+                    // Reserve breathing room below the hidden title bar's traffic lights.
+                    .padding(.top, 32)
+                    #endif
 
                     Spacer()
 

@@ -513,8 +513,11 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = "PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xrsimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "AppDelegate.swift MenuBarExtraContentView.swift PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -560,8 +563,11 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphoneos*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=iphonesimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = "PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
-				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xrsimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
+				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "AppDelegate.swift MenuBarExtraContentView.swift PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift PhaseCompletionNotifying.swift PhaseCompletionController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

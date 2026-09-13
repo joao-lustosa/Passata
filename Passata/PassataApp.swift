@@ -9,6 +9,10 @@ import SwiftUI
 
 @main
 struct PassataApp: App {
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
+
     @State private var store: TimerSettingsStore
     @State private var engine: TimerEngine
 
@@ -47,6 +51,21 @@ struct PassataApp: App {
         )
         store.engine = engine
 
+        #if os(macOS)
+        // Keep completion and feedback running even when every window and popover is closed.
+        Task { @MainActor in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch {
+                    return
+                }
+                engine.recomputeRemaining()
+                engine.checkForCompletion()
+            }
+        }
+        #endif
+
         #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
         // Benign race with a queued cold-launch .completed event, if any: every interleaving converges to the correct state, worst case one redundant update() call.
         Task {
@@ -64,13 +83,22 @@ struct PassataApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "main") {
             TimerScreen(engine: engine, store: store)
                 .modifier(DebugEnvironmentOverrides())
                 .frame(minWidth: 420, idealWidth: 500, minHeight: 620, idealHeight: 760)
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
+        #endif
+
+        #if os(macOS)
+        MenuBarExtra {
+            MenuBarExtraContentView(engine: engine, store: store)
+        } label: {
+            Image(systemName: "timer")
+        }
+        .menuBarExtraStyle(.window)
         #endif
     }
 }

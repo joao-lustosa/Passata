@@ -16,10 +16,17 @@ final class PassataUITests: XCTestCase {
         continueAfterFailure = false
 
         // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+
+        // On macOS, Passata stays running in the background (menu bar presence, see
+        // AppDelegate.applicationShouldTerminateAfterLastWindowClosed) instead of quitting when
+        // its window closes. Without this, a leftover instance from a previous test/run sits in
+        // "Running Background" and XCUIApplication's next launch() fails to activate it.
+        XCUIApplication().terminate()
     }
 
     override func tearDownWithError() throws {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
+        XCUIApplication().terminate()
     }
 
     @MainActor
@@ -27,6 +34,7 @@ final class PassataUITests: XCTestCase {
         // UI tests must launch the application that they test.
         let app = XCUIApplication()
         app.launch()
+        app.activate()
 
         // Use XCTAssert and related functions to verify your tests produce the correct results.
         // XCUIAutomation Documentation
@@ -37,7 +45,9 @@ final class PassataUITests: XCTestCase {
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+            let app = XCUIApplication()
+            app.launch()
+            app.terminate()
         }
     }
 }

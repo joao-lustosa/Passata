@@ -1,3 +1,4 @@
+#if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
 import ActivityKit
 import Foundation
 import XCTest
@@ -194,3 +195,4 @@ private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
         lock.withLock { cancelCount += 1 }
     }
 }
+#endif

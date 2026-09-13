@@ -82,23 +82,32 @@ struct PassataApp: App {
         _engine = State(initialValue: engine)
     }
 
-    var body: some Scene {
-        WindowGroup(id: "main") {
-            TimerScreen(engine: engine, store: store)
-                .modifier(DebugEnvironmentOverrides())
-                .frame(minWidth: 420, idealWidth: 500, minHeight: 620, idealHeight: 760)
-        }
-        #if os(macOS)
-        .windowStyle(.hiddenTitleBar)
-        #endif
+    private var timerScreenContent: some View {
+        TimerScreen(engine: engine, store: store)
+            .modifier(DebugEnvironmentOverrides())
+            .frame(minWidth: 420, idealWidth: 500, minHeight: 620, idealHeight: 760)
+    }
 
+    var body: some Scene {
         #if os(macOS)
+        // Window, not WindowGroup: this app has exactly one meaningful window, and
+        // openWindow(id:) against a Window scene brings the existing instance to the
+        // front instead of spawning a duplicate the way it does for a WindowGroup id.
+        Window("Passata", id: "main") {
+            timerScreenContent
+        }
+        .windowStyle(.hiddenTitleBar)
+
         MenuBarExtra {
             MenuBarExtraContentView(engine: engine, store: store)
         } label: {
             Image(systemName: "timer")
         }
         .menuBarExtraStyle(.window)
+        #else
+        WindowGroup(id: "main") {
+            timerScreenContent
+        }
         #endif
     }
 }

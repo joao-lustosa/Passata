@@ -40,10 +40,10 @@ struct ProgressRingView: View {
 
     var body: some View {
         ZStack {
-            GlassHaloShape(lineWidth: 24)
+            GlassHaloShape(lineWidth: 7)
                 .fill(.clear)
                 .frame(width: ringDiameter + 28, height: ringDiameter + 28)
-                .glassEffect(.regular.tint(accent), in: GlassHaloShape(lineWidth: 24))
+                .glassEffect(.regular.tint(accent.opacity(0.12)), in: GlassHaloShape(lineWidth: 7))
 
             Circle()
                 .stroke(Color("PassataTrack").opacity(reduceTransparency || debugReduceTransparency ? 1 : 0.55), lineWidth: strokeWidth)
@@ -66,7 +66,7 @@ struct ProgressRingView: View {
                 }
 
                 Text(timeLabel)
-                    .font(.system(size: boundedNumeralFontSize, weight: .ultraLight))
+                    .font(.system(size: boundedNumeralFontSize, weight: .thin))
                     .monospacedDigit()
                     .tracking(-1.5)
                     .foregroundStyle(Color("PassataInk"))

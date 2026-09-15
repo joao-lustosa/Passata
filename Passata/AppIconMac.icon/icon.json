@@ -1,0 +1,23 @@
+{
+  "fill" : "none",
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "name" : "Passata Icon",
+          "image-name-specializations" : [
+            { "value" : "PassataIcon-light.png" },
+            { "appearance" : "dark", "value" : "PassataIcon-dark.png" }
+          ],
+          "glass" : false
+        }
+      ]
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

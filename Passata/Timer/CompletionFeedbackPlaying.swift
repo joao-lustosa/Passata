@@ -19,6 +19,11 @@ struct SystemCompletionFeedback: CompletionFeedbackPlaying {
         if hapticsOn { UINotificationFeedbackGenerator().notificationOccurred(.success) }
         #elseif os(macOS)
         if soundOn { NSSound.beep() }
+        #elseif os(visionOS)
+        // Vision Pro has no Taptic Engine, and UINotificationFeedbackGenerator isn't part of
+        // visionOS's UIKit surface at all (not a case of it silently doing nothing) — sound is
+        // the only feedback channel available here.
+        if soundOn { AudioServicesPlaySystemSound(1005) }
         #endif
     }
 }

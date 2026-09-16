@@ -42,6 +42,7 @@ struct DynamicIslandExpandedView: View {
                 LiveActivitySessionDotsView(
                     phase: state.phase,
                     sessionIndex: state.sessionIndex,
+                    sessionsPerCycle: state.sessionsPerCycle,
                     accent: accent
                 )
                 Spacer(minLength: 0)

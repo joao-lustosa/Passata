@@ -5,7 +5,8 @@ import Observation
     private(set) var phase: Phase
     private(set) var status: RunStatus
     private(set) var sessionIndex: Int
-    let sessionsPerCycle = 4
+    static let sessionsPerCycle = 4
+    let sessionsPerCycle = TimerEngine.sessionsPerCycle
     private(set) var remainingSeconds: Int
     private var endDate: Date?
     private var pausedRemaining: TimeInterval?

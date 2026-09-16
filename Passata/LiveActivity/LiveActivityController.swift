@@ -36,6 +36,7 @@ actor LiveActivityController {
         let content = PassataActivityAttributes.ContentState(
             phase: event.phase,
             sessionIndex: event.sessionIndex,
+            sessionsPerCycle: TimerEngine.sessionsPerCycle,
             render: event.render
         )
         let staleDate: Date? = {
@@ -67,6 +68,7 @@ actor LiveActivityController {
         let content = PassataActivityAttributes.ContentState(
             phase: phase,
             sessionIndex: sessionIndex,
+            sessionsPerCycle: TimerEngine.sessionsPerCycle,
             render: render
         )
         let staleDate: Date? = {

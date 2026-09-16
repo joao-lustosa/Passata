@@ -3,6 +3,8 @@ import SwiftUI
 struct DurationStepperRowView: View {
     let label: String
     let valueLabel: String
+    let canDecrease: Bool
+    let canIncrease: Bool
     let onMinus: () -> Void
     let onPlus: () -> Void
 
@@ -18,7 +20,7 @@ struct DurationStepperRowView: View {
             Spacer(minLength: 0)
 
             HStack(spacing: 2) {
-                stepperButton(symbol: "minus", action: onMinus)
+                stepperButton(symbol: "minus", enabled: canDecrease, action: onMinus)
 
                 Text(valueLabel)
                     .font(.system(size: valueFontSize))
@@ -26,7 +28,7 @@ struct DurationStepperRowView: View {
                     .foregroundStyle(Color("PassataInk2"))
                     .frame(minWidth: 56)
 
-                stepperButton(symbol: "plus", action: onPlus)
+                stepperButton(symbol: "plus", enabled: canIncrease, action: onPlus)
             }
             .padding(.trailing, -8)
         }
@@ -34,7 +36,7 @@ struct DurationStepperRowView: View {
         .frame(minHeight: 46)
     }
 
-    private func stepperButton(symbol: String, action: @escaping () -> Void) -> some View {
+    private func stepperButton(symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 16, weight: .semibold))
@@ -47,6 +49,8 @@ struct DurationStepperRowView: View {
                 }
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
         .accessibilityLabel(symbol == "minus" ? "Decrease \(label)" : "Increase \(label)")
     }
 }

@@ -25,17 +25,15 @@ struct ControlsBarView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            if engine.status != .complete {
-                Button(action: engine.togglePrimary) {
-                    Label(primaryLabel, systemImage: primaryIcon)
-                        .font(.system(size: primaryFontSize, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.vertical, primaryVerticalPadding)
-                        .padding(.horizontal, primaryHorizontalPadding)
-                }
-                .buttonStyle(.plain)
-                .glassEffect(.regular.tint(accentDeep), in: .capsule)
+            Button(action: engine.togglePrimary) {
+                Label(primaryLabel, systemImage: primaryIcon)
+                    .font(.system(size: primaryFontSize, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.vertical, primaryVerticalPadding)
+                    .padding(.horizontal, primaryHorizontalPadding)
             }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.tint(accentDeep), in: .capsule)
 
             HStack(spacing: 0) {
                 Button(action: engine.onReset) {

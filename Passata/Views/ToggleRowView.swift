@@ -13,6 +13,7 @@ struct ToggleRowView: View {
                 .foregroundStyle(Color("PassataInk"))
         }
         .toggleStyle(.switch)
+        .tint(Color("PassataFocus"))
         .padding(.horizontal, 16)
         .frame(minHeight: 46)
     }

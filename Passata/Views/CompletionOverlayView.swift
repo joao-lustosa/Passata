@@ -123,16 +123,10 @@ struct CompletionOverlayView: View {
                             lineWidth: 0.5
                         )
                 }
-        } else if colorScheme == .light {
-            // Workaround for a Liquid Glass compositing anomaly in this inline ZStack context.
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(PassataPalette.overlayCardRTBackground())
-                .overlay {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .strokeBorder(Color.black.opacity(0.06), lineWidth: 0.5)
-                }
         } else {
-            let overlayCardGlassTint = Color(red: 40 / 255, green: 40 / 255, blue: 46 / 255).opacity(0.78)
+            let overlayCardGlassTint = colorScheme == .dark
+                ? Color(red: 40 / 255, green: 40 / 255, blue: 46 / 255).opacity(0.78)
+                : Color.white.opacity(0.94)
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(.clear)
                 .glassEffect(.regular.tint(overlayCardGlassTint), in: .rect(cornerRadius: 28))

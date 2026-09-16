@@ -1,0 +1,53 @@
+{
+  "fill-specializations" : [
+    { "value" : { "solid" : "extended-srgb:0.98431,0.95686,0.92941,1" } },
+    { "appearance" : "dark", "value" : { "solid" : "extended-srgb:0.07059,0.04706,0.02745,1" } }
+  ],
+  "groups" : [
+    {
+      "name" : "Dial Marks and Pointer",
+      "layers" : [
+        {
+          "name" : "Dial Marks and Pointer",
+          "image-name" : "dial-marks.png",
+          "opacity-specializations" : [
+            { "value" : 1 },
+            { "appearance" : "tinted", "value" : 0.85 }
+          ]
+        }
+      ]
+    },
+    {
+      "name" : "Body",
+      "layers" : [
+        {
+          "name" : "Body",
+          "image-name" : "body.png",
+          "opacity-specializations" : [
+            { "value" : 1 },
+            { "appearance" : "tinted", "value" : 0.55 }
+          ]
+        }
+      ]
+    },
+    {
+      "name" : "Leaves and Stem",
+      "layers" : [
+        {
+          "name" : "Leaves and Stem",
+          "image-name" : "leaves-stem.png",
+          "opacity-specializations" : [
+            { "value" : 1 },
+            { "appearance" : "tinted", "value" : 1 }
+          ]
+        }
+      ]
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}

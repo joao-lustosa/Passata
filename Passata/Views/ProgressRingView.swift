@@ -38,9 +38,9 @@ struct ProgressRingView: View {
         GeometryReader { proxy in
             let diameter = min(ringDiameter, max(0, proxy.size.width - 48))
             ringContent(diameter: diameter)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .aspectRatio(1, contentMode: .fit)
-        .frame(maxWidth: ringDiameter, maxHeight: ringDiameter)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(phaseLabel), \(timeLabel)\(engine.status == .paused ? ", paused" : "")")
     }

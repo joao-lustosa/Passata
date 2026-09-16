@@ -3,6 +3,8 @@ import SwiftUI
 struct ControlsBarView: View {
     let engine: TimerEngine
 
+    @Namespace private var glassNamespace
+
     @ScaledMetric(relativeTo: .body) private var primaryHorizontalPadding = 36.0
     @ScaledMetric(relativeTo: .body) private var primaryVerticalPadding = 14.0
     @ScaledMetric(relativeTo: .body) private var primaryFontSize = 17.0
@@ -36,31 +38,36 @@ struct ControlsBarView: View {
             .passataMacHoverFeedback()
             .glassEffect(.regular.tint(accentDeep), in: .capsule)
 
-            HStack(spacing: 0) {
-                Button(action: engine.onReset) {
-                    Label("Reset", systemImage: "arrow.counterclockwise")
-                        .frame(minHeight: 46)
-                        .padding(.horizontal, 22)
-                }
-                .disabled(engine.status == .idle)
-                .opacity(engine.status == .idle ? 0.35 : 1)
-                .passataMacHoverFeedback()
+            GlassEffectContainer(spacing: 0) {
+                HStack(spacing: 0) {
+                    Button(action: engine.onReset) {
+                        Label("Reset", systemImage: "arrow.counterclockwise")
+                            .frame(minHeight: 46)
+                            .padding(.horizontal, 22)
+                    }
+                    .disabled(engine.status == .idle)
+                    .opacity(engine.status == .idle ? 0.35 : 1)
+                    .passataMacHoverFeedback()
+                    .glassEffect(.regular, in: .capsule)
+                    .glassEffectUnion(id: "resetSkipGroup", namespace: glassNamespace)
 
-                Divider()
-                    .padding(.vertical, 11)
-                    .frame(height: 24)
+                    Divider()
+                        .padding(.vertical, 11)
+                        .frame(height: 24)
 
-                Button(action: engine.onSkip) {
-                    Label("Skip", systemImage: "forward.fill")
-                        .frame(minHeight: 46)
-                        .padding(.horizontal, 22)
+                    Button(action: engine.onSkip) {
+                        Label("Skip", systemImage: "forward.fill")
+                            .frame(minHeight: 46)
+                            .padding(.horizontal, 22)
+                    }
+                    .passataMacHoverFeedback()
+                    .glassEffect(.regular, in: .capsule)
+                    .glassEffectUnion(id: "resetSkipGroup", namespace: glassNamespace)
                 }
+                .font(.system(size: secondaryFontSize, weight: .medium))
+                .foregroundStyle(Color("PassataInk2"))
+                .buttonStyle(.plain)
             }
-            .font(.system(size: secondaryFontSize, weight: .medium))
-            .foregroundStyle(Color("PassataInk2"))
-            .buttonStyle(.plain)
-            .passataMacHoverFeedback()
-            .glassEffect(.regular, in: .capsule)
         }
         .disabled(engine.status == .complete)
         .opacity(engine.status == .complete ? 0.25 : 1)

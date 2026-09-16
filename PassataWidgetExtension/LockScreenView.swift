@@ -109,3 +109,20 @@ struct LockScreenView: View {
         String(format: "%02d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
     }
 }
+
+#Preview("Lock Screen progress states") {
+    let now = Date()
+    let states = [
+        PassataActivityAttributes.ContentState(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: .idle(phaseDurationSeconds: 1500)),
+        PassataActivityAttributes.ContentState(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: .running(phaseStart: now.addingTimeInterval(-300), phaseEnd: now.addingTimeInterval(1200))),
+        PassataActivityAttributes.ContentState(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: .paused(remainingSeconds: 600, phaseDurationSeconds: 1500)),
+        PassataActivityAttributes.ContentState(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: .complete)
+    ]
+
+    return VStack(spacing: 12) {
+        ForEach(Array(states.enumerated()), id: \.offset) { _, state in
+            LockScreenView(state: state)
+                .background(.black)
+        }
+    }
+}

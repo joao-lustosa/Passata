@@ -52,10 +52,7 @@ struct ProgressRingView: View {
     @ViewBuilder
     private func ringContent(diameter: Double) -> some View {
         ZStack {
-            GlassHaloShape(lineWidth: 7)
-                .fill(.clear)
-                .frame(width: diameter + 28, height: diameter + 28)
-                .glassEffect(.regular.tint(accent.opacity(0.12)), in: GlassHaloShape(lineWidth: 7))
+            ringHalo(diameter: diameter)
 
             Circle()
                 .stroke(Color("PassataTrack").opacity(reduceTransparency || debugReduceTransparency ? 1 : 0.55), lineWidth: strokeWidth)
@@ -94,22 +91,26 @@ struct ProgressRingView: View {
         }
         .frame(width: diameter, height: diameter)
     }
-}
 
-private struct GlassHaloShape: Shape {
-    let lineWidth: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let outerRadius = min(rect.width, rect.height) / 2
-        let innerRadius = max(0, outerRadius - lineWidth)
-        var path = Path()
-
-        path.addArc(center: center, radius: outerRadius, startAngle: .zero, endAngle: .degrees(360), clockwise: false)
-        path.closeSubpath()
-        path.addArc(center: center, radius: innerRadius, startAngle: .zero, endAngle: .degrees(360), clockwise: true)
-        path.closeSubpath()
-        return path
+    // glassEffect fallback: on iOS 27, Liquid Glass's darkened edge plus brighter specular
+    // highlights compress this 7pt annulus into a hard ring with a bright highlight band
+    // rather than the mockup's soft, accent-tinted ambient glow (confirmed by screenshot
+    // comparison, not assumed) — thinner than any other glass surface in this app was ever
+    // going to survive that treatment. A blurred stroke reproduces the intended look directly
+    // instead. Leaving glassEffect means its automatic Reduce Transparency degrade goes with
+    // it, so that branch is written explicitly here.
+    @ViewBuilder
+    private func ringHalo(diameter: Double) -> some View {
+        if reduceTransparency || debugReduceTransparency {
+            Circle()
+                .stroke(accent.opacity(0.10), lineWidth: 7)
+                .frame(width: diameter + 21, height: diameter + 21)
+        } else {
+            Circle()
+                .stroke(accent.opacity(0.12), lineWidth: 7)
+                .frame(width: diameter + 21, height: diameter + 21)
+                .blur(radius: 3)
+        }
     }
 }
 

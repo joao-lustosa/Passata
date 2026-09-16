@@ -54,42 +54,45 @@ struct ProgressRingView: View {
         ZStack {
             ringHalo(diameter: diameter)
 
-            Circle()
-                .stroke(Color("PassataTrack").opacity(reduceTransparency || debugReduceTransparency ? 1 : 0.55), lineWidth: strokeWidth)
+            ZStack {
+                Circle()
+                    .stroke(Color("PassataTrack").opacity(reduceTransparency || debugReduceTransparency ? 1 : 0.55), lineWidth: strokeWidth)
 
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(accent, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(.linear(duration: 0.3), value: progress)
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(accent, style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 0.3), value: progress)
 
-            VStack(spacing: 6) {
-                HStack(spacing: 7) {
-                    Circle()
-                        .fill(accent)
-                        .frame(width: 7, height: 7)
-                    Text(phaseLabel.uppercased())
-                        .font(.system(size: phaseFontSize, weight: .semibold))
-                        .tracking(1.1)
-                        .foregroundStyle(Color("PassataInk2"))
-                }
+                VStack(spacing: 6) {
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(accent)
+                            .frame(width: 7, height: 7)
+                        Text(phaseLabel.uppercased())
+                            .font(.system(size: phaseFontSize, weight: .semibold))
+                            .tracking(1.1)
+                            .foregroundStyle(Color("PassataInk2"))
+                    }
 
-                Text(timeLabel)
-                    .font(.system(size: boundedNumeralFontSize(for: diameter), weight: .thin))
-                    .monospacedDigit()
-                    .tracking(-1.5)
-                    .foregroundStyle(Color("PassataInk"))
-                    .lineLimit(1)
+                    Text(timeLabel)
+                        .font(.system(size: boundedNumeralFontSize(for: diameter), weight: .thin))
+                        .monospacedDigit()
+                        .tracking(-1.5)
+                        .foregroundStyle(Color("PassataInk"))
+                        .lineLimit(1)
 
-                if engine.status == .paused {
-                    Text("Paused")
-                        .font(.system(size: pausedTagFontSize, weight: .medium))
-                        .foregroundStyle(Color("PassataInk2"))
-                        .padding(.top, 2)
+                    if engine.status == .paused {
+                        Text("Paused")
+                            .font(.system(size: pausedTagFontSize, weight: .medium))
+                            .foregroundStyle(Color("PassataInk2"))
+                            .padding(.top, 2)
+                    }
                 }
             }
+            .frame(width: diameter, height: diameter)
         }
-        .frame(width: diameter, height: diameter)
+        .frame(width: diameter + 21, height: diameter + 21)
     }
 
     // glassEffect fallback: on iOS 27, Liquid Glass's darkened edge plus brighter specular

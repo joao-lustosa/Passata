@@ -45,6 +45,8 @@ struct SettingsSheetView: View {
                     DurationStepperRowView(
                         label: "Focus",
                         valueLabel: "\(store.settings.durations.focusMinutes) min",
+                        canDecrease: store.settings.durations.focusMinutes > 5,
+                        canIncrease: store.settings.durations.focusMinutes < 90,
                         onMinus: { store.adjustDuration(\.focusMinutes, delta: -5, in: 5...90, affecting: .focus) },
                         onPlus: { store.adjustDuration(\.focusMinutes, delta: 5, in: 5...90, affecting: .focus) }
                     )
@@ -52,6 +54,8 @@ struct SettingsSheetView: View {
                     DurationStepperRowView(
                         label: "Short Break",
                         valueLabel: "\(store.settings.durations.shortBreakMinutes) min",
+                        canDecrease: store.settings.durations.shortBreakMinutes > 1,
+                        canIncrease: store.settings.durations.shortBreakMinutes < 30,
                         onMinus: { store.adjustDuration(\.shortBreakMinutes, delta: -1, in: 1...30, affecting: .shortBreak) },
                         onPlus: { store.adjustDuration(\.shortBreakMinutes, delta: 1, in: 1...30, affecting: .shortBreak) }
                     )
@@ -59,6 +63,8 @@ struct SettingsSheetView: View {
                     DurationStepperRowView(
                         label: "Long Break",
                         valueLabel: "\(store.settings.durations.longBreakMinutes) min",
+                        canDecrease: store.settings.durations.longBreakMinutes > 5,
+                        canIncrease: store.settings.durations.longBreakMinutes < 60,
                         onMinus: { store.adjustDuration(\.longBreakMinutes, delta: -5, in: 5...60, affecting: .longBreak) },
                         onPlus: { store.adjustDuration(\.longBreakMinutes, delta: 5, in: 5...60, affecting: .longBreak) }
                     )

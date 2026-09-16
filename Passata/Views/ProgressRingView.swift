@@ -34,15 +34,27 @@ struct ProgressRingView: View {
         }
     }
 
-    private var boundedNumeralFontSize: Double {
-        min(numeralFontSize, (ringDiameter - strokeWidth * 2 - 30) / 2.3)
+    var body: some View {
+        GeometryReader { proxy in
+            let diameter = min(ringDiameter, max(0, proxy.size.width - 48))
+            ringContent(diameter: diameter)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: ringDiameter, maxHeight: ringDiameter)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(phaseLabel), \(timeLabel)\(engine.status == .paused ? ", paused" : "")")
     }
 
-    var body: some View {
+    private func boundedNumeralFontSize(for diameter: Double) -> Double {
+        min(numeralFontSize, (diameter - strokeWidth * 2 - 30) / 2.3)
+    }
+
+    @ViewBuilder
+    private func ringContent(diameter: Double) -> some View {
         ZStack {
             GlassHaloShape(lineWidth: 7)
                 .fill(.clear)
-                .frame(width: ringDiameter + 28, height: ringDiameter + 28)
+                .frame(width: diameter + 28, height: diameter + 28)
                 .glassEffect(.regular.tint(accent.opacity(0.12)), in: GlassHaloShape(lineWidth: 7))
 
             Circle()
@@ -66,7 +78,7 @@ struct ProgressRingView: View {
                 }
 
                 Text(timeLabel)
-                    .font(.system(size: boundedNumeralFontSize, weight: .thin))
+                    .font(.system(size: boundedNumeralFontSize(for: diameter), weight: .thin))
                     .monospacedDigit()
                     .tracking(-1.5)
                     .foregroundStyle(Color("PassataInk"))
@@ -80,9 +92,7 @@ struct ProgressRingView: View {
                 }
             }
         }
-        .frame(width: ringDiameter, height: ringDiameter)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(phaseLabel), \(timeLabel)\(engine.status == .paused ? ", paused" : "")")
+        .frame(width: diameter, height: diameter)
     }
 }
 

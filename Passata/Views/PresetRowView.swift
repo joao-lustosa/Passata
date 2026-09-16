@@ -29,5 +29,6 @@ struct PresetRowView: View {
             .frame(minHeight: 46)
         }
         .buttonStyle(.plain)
+        .passataMacHoverFeedback()
     }
 }

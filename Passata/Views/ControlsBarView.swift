@@ -33,6 +33,7 @@ struct ControlsBarView: View {
                     .padding(.horizontal, primaryHorizontalPadding)
             }
             .buttonStyle(.plain)
+            .passataMacHoverFeedback()
             .glassEffect(.regular.tint(accentDeep), in: .capsule)
 
             HStack(spacing: 0) {
@@ -57,6 +58,7 @@ struct ControlsBarView: View {
             .font(.system(size: secondaryFontSize, weight: .medium))
             .foregroundStyle(Color("PassataInk2"))
             .buttonStyle(.plain)
+            .passataMacHoverFeedback()
             .glassEffect(.regular, in: .capsule)
         }
         .disabled(engine.status == .complete)

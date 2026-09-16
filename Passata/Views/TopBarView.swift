@@ -48,3 +48,23 @@ struct TopBarView: View {
         #endif
     }
 }
+
+struct PassataMacHoverFeedback: ViewModifier {
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+            .onHover { isHovered = $0 }
+            .brightness(isHovered ? 0.08 : 0)
+        #else
+        content
+        #endif
+    }
+}
+
+extension View {
+    func passataMacHoverFeedback() -> some View {
+        modifier(PassataMacHoverFeedback())
+    }
+}

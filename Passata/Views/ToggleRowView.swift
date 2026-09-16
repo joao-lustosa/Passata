@@ -14,6 +14,7 @@ struct ToggleRowView: View {
         }
         .toggleStyle(.switch)
         .tint(Color("PassataFocus"))
+        .passataMacHoverFeedback()
         .padding(.horizontal, 16)
         .frame(minHeight: 46)
     }

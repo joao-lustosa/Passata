@@ -101,7 +101,7 @@ struct PassataApp: App {
         MenuBarExtra {
             MenuBarExtraContentView(engine: engine, store: store)
         } label: {
-            Image(systemName: "timer")
+            MenuBarExtraContentView(engine: engine, store: store).label
         }
         .menuBarExtraStyle(.window)
         #else

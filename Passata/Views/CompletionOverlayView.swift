@@ -86,6 +86,7 @@ struct CompletionOverlayView: View {
                             .padding(.horizontal, 30)
                     }
                     .buttonStyle(.plain)
+                    .passataMacHoverFeedback()
                     .padding(.top, 6)
                     .glassEffect(.regular.tint(nextAccentDeep), in: .capsule)
                 }

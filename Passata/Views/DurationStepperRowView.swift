@@ -49,6 +49,7 @@ struct DurationStepperRowView: View {
                 }
         }
         .buttonStyle(.plain)
+        .passataMacHoverFeedback()
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.35)
         .accessibilityLabel(symbol == "minus" ? "Decrease \(label)" : "Increase \(label)")

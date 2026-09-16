@@ -59,9 +59,11 @@ struct TimerScreen: View {
             SettingsSheetView(store: store) {
                 settingsOpen = false
             }
+            #if os(iOS)
             .presentationDetents([.fraction(0.72)])
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(32)
+            #endif
             .presentationBackground {
                 if reduceTransparency || debugReduceTransparency {
                     let sheetShape = UnevenRoundedRectangle(

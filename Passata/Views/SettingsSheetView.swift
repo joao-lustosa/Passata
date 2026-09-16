@@ -34,6 +34,7 @@ struct SettingsSheetView: View {
                             }
                     }
                     .buttonStyle(.plain)
+                    .passataMacHoverFeedback()
                     .accessibilityLabel("Close settings")
                 }
                 .padding(.bottom, 6)

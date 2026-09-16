@@ -44,6 +44,7 @@ struct ControlsBarView: View {
                 }
                 .disabled(engine.status == .idle)
                 .opacity(engine.status == .idle ? 0.35 : 1)
+                .passataMacHoverFeedback()
 
                 Divider()
                     .padding(.vertical, 11)

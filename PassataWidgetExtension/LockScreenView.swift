@@ -44,7 +44,7 @@ struct LockScreenView: View {
                 if case .paused = state.render {
                     Text("Paused")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(ink2)
+                        .foregroundStyle(.white)
                         .padding(.vertical, 3)
                         .padding(.horizontal, 10)
                         .background(material, in: Capsule())
@@ -54,6 +54,7 @@ struct LockScreenView: View {
             LiveActivitySessionDotsView(
                 phase: state.phase,
                 sessionIndex: state.sessionIndex,
+                sessionsPerCycle: state.sessionsPerCycle,
                 accent: accent
             )
         }

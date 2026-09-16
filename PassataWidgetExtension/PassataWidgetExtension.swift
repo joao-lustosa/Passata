@@ -21,7 +21,11 @@ struct PassataWidgetExtension: Widget {
                 DynamicIslandCompactTrailingView(state: context.state)
                     .environment(\.colorScheme, .dark)
             } minimal: {
-                EmptyView()
+                DeterminateCircularProgressView(
+                    progress: context.state.render.staticProgress,
+                    accent: PassataPalette.accent(for: context.state.phase)
+                )
+                .frame(width: 19, height: 19)
             }
         }
     }

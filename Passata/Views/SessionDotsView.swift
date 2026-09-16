@@ -16,7 +16,7 @@ struct SessionDotsView: View {
                 let isCurrent = phase == .focus && dotNumber == sessionIndex && !isFilled
 
                 Circle()
-                    .fill(isFilled ? PassataPalette.accent(for: phase) : .clear)
+                    .fill(isFilled ? Color("PassataFocus") : .clear)
                     .overlay {
                         if !isFilled {
                             Circle()

@@ -6,15 +6,21 @@ struct DynamicIslandCompactLeadingView: View {
     private var accent: Color { PassataPalette.accent(for: state.phase) }
 
     var body: some View {
-        progressView
+        ActivityProgressView(render: state.render, accent: accent)
             .frame(width: 19, height: 19)
             .padding(.leading, 12)
             .padding(.trailing, 6)
     }
 
+}
+
+struct ActivityProgressView: View {
+    let render: RenderState
+    let accent: Color
+
     @ViewBuilder
-    private var progressView: some View {
-        switch state.render {
+    var body: some View {
+        switch render {
         case let .running(phaseStart, phaseEnd):
             ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false) {
                 EmptyView()
@@ -24,7 +30,7 @@ struct DynamicIslandCompactLeadingView: View {
                 .tint(accent)
                 .progressViewStyle(.circular)
         default:
-            DeterminateCircularProgressView(progress: state.render.staticProgress, accent: accent)
+            DeterminateCircularProgressView(progress: render.staticProgress, accent: accent)
         }
     }
 }

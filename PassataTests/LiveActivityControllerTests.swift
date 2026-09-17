@@ -151,6 +151,39 @@ final class LiveActivityControllerTests: XCTestCase {
 
 @MainActor
 final class PhaseCompletionControllerTests: XCTestCase {
+    func testInterleavedTransitionsPreserveOrderAndIgnoreNonRunningStarts() async {
+        let notifier = RecordingPhaseCompletionNotifier()
+        let controller = PhaseCompletionController(notifier: notifier)
+        let deadline = Date(timeIntervalSinceReferenceDate: 220)
+        let running = RenderState.running(phaseStart: Date(timeIntervalSinceReferenceDate: 100), phaseEnd: deadline)
+        let paused = RenderState.paused(remainingSeconds: 50, phaseDurationSeconds: 120)
+        let idle = RenderState.idle(phaseDurationSeconds: 120)
+        let transitions: [(TimerEngine.TransitionKind, RenderState)] = [
+            (.started, running), (.paused, paused), (.resumed, running),
+            (.reset, idle), (.startedNext, running), (.skipped, idle), (.completed, .complete)
+        ]
+        for (kind, render) in transitions {
+            controller.submit(phase: .focus, sessionIndex: 1, render: render, kind: kind)
+        }
+
+        for kind: TimerEngine.TransitionKind in [.started, .resumed, .startedNext] {
+            for render in [idle, paused, .complete] {
+                controller.submit(phase: .focus, sessionIndex: 1, render: render, kind: kind)
+            }
+        }
+        // A distinct trailing schedule proves all preceding no-op events were consumed.
+        let finalDeadline = Date(timeIntervalSinceReferenceDate: 400)
+        controller.submit(phase: .shortBreak, sessionIndex: 2,
+                          render: .running(phaseStart: deadline, phaseEnd: finalDeadline), kind: .startedNext)
+        await waitUntil { notifier.snapshot().scheduledDeadlines.last == finalDeadline }
+        XCTAssertEqual(notifier.snapshot().actions, [
+            .schedule(phase: .focus, deadline: deadline), .cancel,
+            .schedule(phase: .focus, deadline: deadline), .cancel,
+            .schedule(phase: .focus, deadline: deadline), .cancel, .cancel,
+            .schedule(phase: .shortBreak, deadline: finalDeadline)
+        ])
+    }
+
     func testEveryTransitionKindMapsToTheNotificationDecisionTable() async {
         let notifier = RecordingPhaseCompletionNotifier()
         let controller = PhaseCompletionController(notifier: notifier)
@@ -272,11 +305,17 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 #endif
 
 private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
+    enum Action: Equatable {
+        case schedule(phase: Phase, deadline: Date)
+        case cancel
+    }
+
     struct Snapshot {
         let scheduleCount: Int
         let cancelCount: Int
         let scheduledPhases: [Phase]
         let scheduledDeadlines: [Date]
+        let actions: [Action]
     }
 
     private let lock = NSLock()
@@ -284,10 +323,11 @@ private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
     private(set) var cancelCount = 0
     private(set) var scheduledPhases: [Phase] = []
     private var scheduledDeadlines: [Date] = []
+    private var actions: [Action] = []
 
     func snapshot() -> Snapshot {
         lock.withLock {
-            Snapshot(scheduleCount: scheduleCount, cancelCount: cancelCount, scheduledPhases: scheduledPhases, scheduledDeadlines: scheduledDeadlines)
+            Snapshot(scheduleCount: scheduleCount, cancelCount: cancelCount, scheduledPhases: scheduledPhases, scheduledDeadlines: scheduledDeadlines, actions: actions)
         }
     }
 
@@ -296,10 +336,14 @@ private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
             scheduleCount += 1
             scheduledPhases.append(phase)
             scheduledDeadlines.append(phaseEnd)
+            actions.append(.schedule(phase: phase, deadline: phaseEnd))
         }
     }
 
     func cancelPending() async {
-        lock.withLock { cancelCount += 1 }
+        lock.withLock {
+            cancelCount += 1
+            actions.append(.cancel)
+        }
     }
 }

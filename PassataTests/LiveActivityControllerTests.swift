@@ -8,6 +8,49 @@ import XCTest
 #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
 @MainActor
 final class LiveActivityControllerTests: XCTestCase {
+    func testRequestFailureDoesNotStopQueuedPausedEvent() async {
+        let publisher = RecordingLiveActivityPublisher(failNextRequest: true)
+        let controller = LiveActivityController(publisher: publisher)
+        let deadline = Date(timeIntervalSinceReferenceDate: 220)
+        let running = RenderState.running(phaseStart: Date(timeIntervalSinceReferenceDate: 100), phaseEnd: deadline)
+        let paused = RenderState.paused(remainingSeconds: 75, phaseDurationSeconds: 120)
+
+        controller.submit(phase: .focus, sessionIndex: 2, render: running, kind: .started)
+        controller.submit(phase: .focus, sessionIndex: 2, render: paused, kind: .paused)
+        await waitUntil { publisher.snapshot().updateCount == 1 }
+
+        XCTAssertEqual(publisher.snapshot().requestFailureCount, 1)
+        let active = await publisher.hasActiveActivity()
+        XCTAssertFalse(active)
+        XCTAssertEqual(publisher.snapshot().publications, [
+            .init(action: "request", content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4, render: running), staleDate: deadline),
+            .init(action: "update", content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4, render: paused), staleDate: nil)
+        ])
+    }
+
+    func testReconcileRequestFailureAllowsLaterSubmittedRequest() async {
+        let publisher = RecordingLiveActivityPublisher(failNextRequest: true)
+        let controller = LiveActivityController(publisher: publisher)
+        let deadline = Date(timeIntervalSinceReferenceDate: 480)
+        let running = RenderState.running(phaseStart: Date(timeIntervalSinceReferenceDate: 300), phaseEnd: deadline)
+        let content = PassataActivityAttributes.ContentState(phase: .longBreak, sessionIndex: 4, sessionsPerCycle: 4, render: running)
+
+        await controller.reconcileOnLaunch(phase: .longBreak, sessionIndex: 4, status: .running, render: running)
+        XCTAssertEqual(publisher.snapshot().requestFailureCount, 1)
+        let activeAfterFailure = await publisher.hasActiveActivity()
+        XCTAssertFalse(activeAfterFailure)
+
+        controller.submit(phase: .longBreak, sessionIndex: 4, render: running, kind: .started)
+        await waitUntil { publisher.snapshot().requestCount == 2 }
+        let activeAfterRecovery = await publisher.hasActiveActivity()
+        XCTAssertTrue(activeAfterRecovery)
+        XCTAssertEqual(publisher.snapshot().requestFailureCount, 1)
+        XCTAssertEqual(publisher.snapshot().publications, [
+            .init(action: "request", content: content, staleDate: deadline),
+            .init(action: "request", content: content, staleDate: deadline)
+        ])
+    }
+
     func testTransitionKindsMapToPublisherActionsInSubmissionOrder() async {
         let publisher = RecordingLiveActivityPublisher()
         let controller = LiveActivityController(publisher: publisher)
@@ -108,6 +151,39 @@ final class LiveActivityControllerTests: XCTestCase {
 
 @MainActor
 final class PhaseCompletionControllerTests: XCTestCase {
+    func testInterleavedTransitionsPreserveOrderAndIgnoreNonRunningStarts() async {
+        let notifier = RecordingPhaseCompletionNotifier()
+        let controller = PhaseCompletionController(notifier: notifier)
+        let deadline = Date(timeIntervalSinceReferenceDate: 220)
+        let running = RenderState.running(phaseStart: Date(timeIntervalSinceReferenceDate: 100), phaseEnd: deadline)
+        let paused = RenderState.paused(remainingSeconds: 50, phaseDurationSeconds: 120)
+        let idle = RenderState.idle(phaseDurationSeconds: 120)
+        let transitions: [(TimerEngine.TransitionKind, RenderState)] = [
+            (.started, running), (.paused, paused), (.resumed, running),
+            (.reset, idle), (.startedNext, running), (.skipped, idle), (.completed, .complete)
+        ]
+        for (kind, render) in transitions {
+            controller.submit(phase: .focus, sessionIndex: 1, render: render, kind: kind)
+        }
+
+        for kind: TimerEngine.TransitionKind in [.started, .resumed, .startedNext] {
+            for render in [idle, paused, .complete] {
+                controller.submit(phase: .focus, sessionIndex: 1, render: render, kind: kind)
+            }
+        }
+        // A distinct trailing schedule proves all preceding no-op events were consumed.
+        let finalDeadline = Date(timeIntervalSinceReferenceDate: 400)
+        controller.submit(phase: .shortBreak, sessionIndex: 2,
+                          render: .running(phaseStart: deadline, phaseEnd: finalDeadline), kind: .startedNext)
+        await waitUntil { notifier.snapshot().scheduledDeadlines.last == finalDeadline }
+        XCTAssertEqual(notifier.snapshot().actions, [
+            .schedule(phase: .focus, deadline: deadline), .cancel,
+            .schedule(phase: .focus, deadline: deadline), .cancel,
+            .schedule(phase: .focus, deadline: deadline), .cancel, .cancel,
+            .schedule(phase: .shortBreak, deadline: finalDeadline)
+        ])
+    }
+
     func testEveryTransitionKindMapsToTheNotificationDecisionTable() async {
         let notifier = RecordingPhaseCompletionNotifier()
         let controller = PhaseCompletionController(notifier: notifier)
@@ -157,6 +233,7 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 
     struct Snapshot {
         let requestCount: Int
+        let requestFailureCount: Int
         let updateCount: Int
         let endCount: Int
         let actions: [String]
@@ -170,9 +247,13 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
     private(set) var active: Bool
     private(set) var actions: [String] = []
     private var publications: [Publication] = []
+    private var failNextRequest: Bool
+    private var requestFailureCount = 0
+    private enum RequestError: Error { case unavailable }
 
-    init(active: Bool = false) {
+    init(active: Bool = false, failNextRequest: Bool = false) {
         self.active = active
+        self.failNextRequest = failNextRequest
     }
 
     func setActive(_ value: Bool) {
@@ -181,7 +262,7 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 
     func snapshot() -> Snapshot {
         lock.withLock {
-            Snapshot(requestCount: requestCount, updateCount: updateCount, endCount: endCount, actions: actions, publications: publications)
+            Snapshot(requestCount: requestCount, requestFailureCount: requestFailureCount, updateCount: updateCount, endCount: endCount, actions: actions, publications: publications)
         }
     }
 
@@ -190,10 +271,15 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
     }
 
     func request(_ content: PassataActivityAttributes.ContentState, staleDate: Date?) throws {
-        lock.withLock {
+        try lock.withLock {
             requestCount += 1
             actions.append("request")
             publications.append(.init(action: "request", content: content, staleDate: staleDate))
+            if failNextRequest {
+                failNextRequest = false
+                requestFailureCount += 1
+                throw RequestError.unavailable
+            }
             active = true
         }
     }
@@ -219,11 +305,17 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 #endif
 
 private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
+    enum Action: Equatable {
+        case schedule(phase: Phase, deadline: Date)
+        case cancel
+    }
+
     struct Snapshot {
         let scheduleCount: Int
         let cancelCount: Int
         let scheduledPhases: [Phase]
         let scheduledDeadlines: [Date]
+        let actions: [Action]
     }
 
     private let lock = NSLock()
@@ -231,10 +323,11 @@ private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
     private(set) var cancelCount = 0
     private(set) var scheduledPhases: [Phase] = []
     private var scheduledDeadlines: [Date] = []
+    private var actions: [Action] = []
 
     func snapshot() -> Snapshot {
         lock.withLock {
-            Snapshot(scheduleCount: scheduleCount, cancelCount: cancelCount, scheduledPhases: scheduledPhases, scheduledDeadlines: scheduledDeadlines)
+            Snapshot(scheduleCount: scheduleCount, cancelCount: cancelCount, scheduledPhases: scheduledPhases, scheduledDeadlines: scheduledDeadlines, actions: actions)
         }
     }
 
@@ -243,10 +336,14 @@ private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
             scheduleCount += 1
             scheduledPhases.append(phase)
             scheduledDeadlines.append(phaseEnd)
+            actions.append(.schedule(phase: phase, deadline: phaseEnd))
         }
     }
 
     func cancelPending() async {
-        lock.withLock { cancelCount += 1 }
+        lock.withLock {
+            cancelCount += 1
+            actions.append(.cancel)
+        }
     }
 }

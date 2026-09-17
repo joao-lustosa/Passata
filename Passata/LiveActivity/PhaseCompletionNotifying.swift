@@ -8,15 +8,17 @@ protocol PhaseCompletionNotifying {
 
 struct SystemPhaseCompletionNotifier: PhaseCompletionNotifying {
     private let notificationIdentifier = "phase-completion"
+    private let center: any UserNotificationScheduling
 
-    nonisolated init() {}
+    nonisolated init(center: any UserNotificationScheduling = SystemUserNotificationCenter()) {
+        self.center = center
+    }
 
     func schedule(at phaseEnd: Date, phase: Phase) async {
-        let center = UNUserNotificationCenter.current()
-        let settings = await center.notificationSettings()
-        if settings.authorizationStatus == .notDetermined {
-            guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else { return }
-        } else if settings.authorizationStatus == .denied {
+        let status = await center.authorizationStatus()
+        if status == .notDetermined {
+            guard (try? await center.requestAuthorization()) == true else { return }
+        } else if status == .denied {
             return
         }
 
@@ -35,8 +37,7 @@ struct SystemPhaseCompletionNotifier: PhaseCompletionNotifying {
     }
 
     func cancelPending() async {
-        UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
+        center.removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
     }
 
     private func title(for phase: Phase) -> String {

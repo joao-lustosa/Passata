@@ -3,6 +3,35 @@ import XCTest
 
 @MainActor
 final class TimerSettingsStoreTests: XCTestCase {
+    func testEngineUsesChangedSettingsForResetAndNextPhaseDurations() {
+        let persister = SettingsSpy()
+        let store = TimerSettingsStore(persister: persister)
+        let engine = TimerEngine(durationProvider: store, persister: NoOpTimerStateStore())
+        store.engine = engine
+        XCTAssertEqual(engine.remainingSeconds, 25 * 60)
+
+        engine.start()
+        store.adjustDuration(\.focusMinutes, delta: 5, in: 5...90, affecting: .focus)
+        XCTAssertEqual(engine.remainingSeconds, 25 * 60)
+        engine.onReset()
+        XCTAssertEqual(engine.status, .idle)
+        XCTAssertEqual(engine.remainingSeconds, 30 * 60)
+        XCTAssertEqual(engine.currentRenderState, .idle(phaseDurationSeconds: 30 * 60))
+
+        store.adjustDuration(\.shortBreakMinutes, delta: 2, in: 1...30, affecting: .shortBreak)
+        engine.onStartNext()
+        XCTAssertEqual(engine.phase, .shortBreak)
+        XCTAssertEqual(engine.status, .running)
+        XCTAssertEqual(engine.remainingSeconds, 7 * 60)
+        if case let .running(start, end) = engine.currentRenderState {
+            XCTAssertEqual(end.timeIntervalSince(start), 420)
+        } else {
+            XCTFail("Expected the next phase to have a running interval")
+        }
+        XCTAssertEqual(persister.stored?.durations,
+                       PhaseDurations(focusMinutes: 30, shortBreakMinutes: 7, longBreakMinutes: 15))
+    }
+
     func testAdjustDurationClampsEveryFieldAndSetsCustomPreset() {
         let store = makeStore()
 
@@ -105,8 +134,15 @@ final class TimerSettingsStoreTests: XCTestCase {
         let store = TimerSettingsStore(persister: persister, engine: engine)
 
         store.toggleSound()
+        var expected = TimerSettings()
+        expected.soundOn = false
+        XCTAssertEqual(persister.stored, expected)
         store.toggleHaptics()
+        expected.hapticsOn = false
+        XCTAssertEqual(persister.stored, expected)
         store.toggleAutoStart()
+        expected.autoStartNext = false
+        XCTAssertEqual(persister.stored, expected)
 
         XCTAssertFalse(store.settings.soundOn)
         XCTAssertFalse(store.settings.hapticsOn)

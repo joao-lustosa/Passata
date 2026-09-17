@@ -5,6 +5,14 @@ enum Phase: String, Codable, CaseIterable {
 }
 
 extension Phase {
+    var displayName: String {
+        switch self {
+        case .focus: "Focus"
+        case .shortBreak: "Short Break"
+        case .longBreak: "Long Break"
+        }
+    }
+
     func next(sessionIndex: Int, sessionsPerCycle: Int) -> (phase: Phase, sessionIndex: Int) {
         switch self {
         case .focus:

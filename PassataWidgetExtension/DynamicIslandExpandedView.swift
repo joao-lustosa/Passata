@@ -9,11 +9,7 @@ struct DynamicIslandExpandedView: View {
     private var accent: Color { PassataPalette.accent(for: state.phase) }
 
     private var phaseLabel: String {
-        switch state.phase {
-        case .focus: "Focus"
-        case .shortBreak: "Short Break"
-        case .longBreak: "Long Break"
-        }
+        state.phase.displayName
     }
 
     var body: some View {
@@ -119,7 +115,7 @@ struct DynamicIslandExpandedView: View {
     }
 
     private func formatted(seconds: Int) -> String {
-        String(format: "%02d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
+        seconds.asClockString
     }
 }
 

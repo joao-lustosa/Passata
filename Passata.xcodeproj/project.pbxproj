@@ -105,6 +105,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXBuildFile section */
+		AABBCC013050F9E100497436 /* ClockFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCC023050F9E100497436 /* ClockFormatting.swift */; };
 		27ADB00A3050F9E100497436 /* PassataWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 27ADB0013050F9E100497436 /* PassataWidgetExtension.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		27ADB0103050F9E100497436 /* Phase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ADB0143050F9E100497436 /* Phase.swift */; };
 		27ADB0113050F9E100497436 /* PassataActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ADB0153050F9E100497436 /* PassataActivityAttributes.swift */; };
@@ -347,6 +348,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				27ADB0103050F9E100497436 /* Phase.swift in Sources */,
+				AABBCC013050F9E100497436 /* ClockFormatting.swift in Sources */,
 				27ADB0113050F9E100497436 /* PassataActivityAttributes.swift in Sources */,
 				27ADB0123050F9E100497436 /* PassataPalette.swift in Sources */,
 				27ADB01B3050F9E100497436 /* RenderState.swift in Sources */,
@@ -357,6 +359,7 @@
 
 /* Begin PBXFileReference section (shared extension files) */
 		27ADB0143050F9E100497436 /* Phase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Timer/Phase.swift; sourceTree = "<group>"; };
+		AABBCC023050F9E100497436 /* ClockFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Timer/ClockFormatting.swift; sourceTree = "<group>"; };
 		27ADB0153050F9E100497436 /* PassataActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/LiveActivity/PassataActivityAttributes.swift; sourceTree = "<group>"; };
 		27ADB0163050F9E100497436 /* PassataPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Theme/PassataPalette.swift; sourceTree = "<group>"; };
 		27ADB0173050F9E100497436 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Passata/Theme/Assets.xcassets; sourceTree = "<group>"; };

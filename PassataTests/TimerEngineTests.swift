@@ -4,6 +4,115 @@ import XCTest
 
 @MainActor
 final class TimerEngineTests: XCTestCase {
+    func testCompletionCallbackAndTransitionAreEmittedExactlyOnce() {
+        let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+        var completions = 0
+        var completedEvents = 0
+        let engine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: clock,
+            persister: RecordingTimerStateStore(),
+            autoStartNext: false,
+            onPhaseCompleted: { completions += 1 },
+            onStateChange: { _, _, _, kind in
+                if case .completed = kind { completedEvents += 1 }
+            }
+        )
+
+        engine.start()
+        clock.now = clock.now.addingTimeInterval(120)
+        for _ in 0..<3 {
+            engine.recomputeRemaining()
+            engine.checkForCompletion()
+        }
+
+        XCTAssertEqual(engine.status, .complete)
+        XCTAssertEqual(engine.remainingSeconds, 0)
+        XCTAssertEqual(completions, 1)
+        XCTAssertEqual(completedEvents, 1)
+    }
+
+    func testManualTransitionsCancelPendingAutoAdvanceEvenIfAnotherPhaseCompletes() async {
+        let actions: [(String, (TimerEngine) -> Void, Phase)] = [
+            ("reset", { $0.onReset() }, .focus),
+            ("skip", { $0.onSkip() }, .shortBreak),
+            ("start next", { $0.onStartNext() }, .shortBreak)
+        ]
+        var engines: [TimerEngine] = []
+        var unexpectedAdvances: [XCTestExpectation] = []
+
+        for (name, action, expectedPhase) in actions {
+            let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+            let engine = makeEngine(clock: clock)
+            engine.start()
+            clock.now = clock.now.addingTimeInterval(120)
+            engine.checkForCompletion()
+            await Task.yield()
+
+            action(engine)
+            XCTAssertEqual(engine.phase, expectedPhase, name)
+            XCTAssertEqual(engine.sessionIndex, 1, name)
+            engine.autoStartNext = false
+            if engine.status == .idle { engine.start() }
+            clock.now = clock.now.addingTimeInterval(180)
+            engine.checkForCompletion()
+            XCTAssertEqual(engine.status, .complete, name)
+
+            // Returning to complete makes the old task's status guard pass;
+            // only cancellation prevents it from advancing this newer completion.
+            let unexpectedAdvance = expectation(description: "No stale auto-advance after " + name)
+            unexpectedAdvance.isInverted = true
+            engine.onStateChange = { _, _, _, kind in
+                if case .startedNext = kind { unexpectedAdvance.fulfill() }
+            }
+            engines.append(engine)
+            unexpectedAdvances.append(unexpectedAdvance)
+        }
+
+        await fulfillment(of: unexpectedAdvances, timeout: 1.8)
+        for (engine, action) in zip(engines, actions) {
+            XCTAssertEqual(engine.status, .complete, action.0)
+            XCTAssertEqual(engine.phase, action.2, action.0)
+            XCTAssertEqual(engine.sessionIndex, 1, action.0)
+        }
+    }
+
+    func testEngineTraversesAFullFourSessionCycle() {
+        let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+        let engine = makeEngine(clock: clock)
+        let expected: [(Phase, Int, Int)] = [
+            (.shortBreak, 1, 60), (.focus, 2, 120),
+            (.shortBreak, 2, 60), (.focus, 3, 120),
+            (.shortBreak, 3, 60), (.focus, 4, 120),
+            (.longBreak, 4, 180), (.focus, 1, 120)
+        ]
+
+        for (index, step) in expected.enumerated() {
+            if index.isMultiple(of: 2) { engine.onSkip() } else { engine.onStartNext() }
+            XCTAssertEqual(engine.phase, step.0, "Transition \(index)")
+            XCTAssertEqual(engine.sessionIndex, step.1, "Transition \(index)")
+            XCTAssertEqual(engine.remainingSeconds, step.2, "Transition \(index)")
+            XCTAssertEqual(engine.status, index.isMultiple(of: 2) ? .idle : .running)
+        }
+    }
+
+    func testFractionalRemainingRoundsUpButPausedRenderTruncates() {
+        let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+        let engine = makeEngine(clock: clock)
+        engine.start()
+        clock.now = clock.now.addingTimeInterval(30.25)
+        engine.recomputeRemaining()
+        XCTAssertEqual(engine.remainingSeconds, 90)
+
+        engine.pause()
+        XCTAssertEqual(engine.state, .paused(remaining: 89.75))
+        XCTAssertEqual(engine.remainingSeconds, 90)
+        XCTAssertEqual(engine.currentRenderState, .paused(remainingSeconds: 89, phaseDurationSeconds: 120))
+        clock.now = clock.now.addingTimeInterval(500)
+        engine.recomputeRemaining()
+        XCTAssertEqual(engine.remainingSeconds, 90)
+    }
+
     func testPhaseSequencingCoversEveryTransition() {
         let beforeCycleEnd = Phase.focus.next(sessionIndex: 3, sessionsPerCycle: 4)
         XCTAssertEqual(beforeCycleEnd.phase, .shortBreak)

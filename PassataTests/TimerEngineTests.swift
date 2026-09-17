@@ -97,6 +97,69 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(anotherEngine.remainingSeconds, 60)
     }
 
+    func testInitRestoresRunningSnapshotWithoutDeadlineAsIdle() {
+        let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+        let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
+            phase: .shortBreak,
+            status: .running,
+            sessionIndex: 2,
+            endDate: nil,
+            pausedRemaining: 17
+        ))
+
+        let engine = makeEngine(clock: clock, store: store)
+
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(engine.status, .idle)
+        XCTAssertEqual(engine.phase, .shortBreak)
+        XCTAssertEqual(engine.sessionIndex, 2)
+        XCTAssertEqual(engine.remainingSeconds, 60)
+        XCTAssertEqual(engine.currentRenderState, .idle(phaseDurationSeconds: 60))
+
+        engine.start()
+        XCTAssertEqual(store.latest?.status, .running)
+        XCTAssertEqual(store.latest?.endDate, clock.now.addingTimeInterval(60))
+        XCTAssertNil(store.latest?.pausedRemaining)
+    }
+
+    func testInitRestoresIdleDurationFromProviderIgnoringStaleSnapshotFields() {
+        let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+        let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
+            phase: .longBreak,
+            status: .idle,
+            sessionIndex: 4,
+            endDate: clock.now.addingTimeInterval(500),
+            pausedRemaining: 17
+        ))
+
+        let engine = makeEngine(clock: clock, store: store)
+        clock.now = clock.now.addingTimeInterval(1_000)
+        engine.recomputeRemaining()
+        engine.checkForCompletion()
+
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(engine.status, .idle)
+        XCTAssertEqual(engine.remainingSeconds, 180)
+        XCTAssertEqual(engine.currentRenderState, .idle(phaseDurationSeconds: 180))
+    }
+
+    func testInitRestoresPausedSnapshotWithoutRemainingTimeAsIdle() {
+        let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+        let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
+            phase: .focus,
+            status: .paused,
+            sessionIndex: 3,
+            endDate: nil,
+            pausedRemaining: nil
+        ))
+
+        let engine = makeEngine(clock: clock, store: store)
+
+        XCTAssertEqual(engine.state, .idle)
+        XCTAssertEqual(engine.remainingSeconds, 120)
+        XCTAssertEqual(engine.currentRenderState, .idle(phaseDurationSeconds: 120))
+    }
+
     func testInitRestoresExpiredRunningSnapshotAsComplete() {
         let now = Date(timeIntervalSinceReferenceDate: 1_000)
         let clock = FakeDateProvider(now: now)

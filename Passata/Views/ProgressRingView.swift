@@ -126,10 +126,6 @@ struct ProgressRingView: View {
 
 private struct PreviewDurationProvider: DurationProviding {
     func duration(for phase: Phase) -> Int {
-        switch phase {
-        case .focus: 25 * 60
-        case .shortBreak: 5 * 60
-        case .longBreak: 15 * 60
-        }
+        PhaseDurations.classic.seconds(for: phase)
     }
 }

@@ -7,7 +7,7 @@ import Observation
 
     private let persister: any SettingsPersisting
     private let presetTable: [Preset: PhaseDurations] = [
-        .classic: PhaseDurations(focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15),
+        .classic: .classic,
         .deep: PhaseDurations(focusMinutes: 50, shortBreakMinutes: 10, longBreakMinutes: 30),
         .short: PhaseDurations(focusMinutes: 15, shortBreakMinutes: 3, longBreakMinutes: 15)
     ]

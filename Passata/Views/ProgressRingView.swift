@@ -23,15 +23,11 @@ struct ProgressRingView: View {
     }
 
     private var timeLabel: String {
-        String(format: "%02d:%02d", engine.remainingSeconds / 60, engine.remainingSeconds % 60)
+        engine.remainingSeconds.asClockString
     }
 
     private var phaseLabel: String {
-        switch engine.phase {
-        case .focus: "Focus"
-        case .shortBreak: "Short Break"
-        case .longBreak: "Long Break"
-        }
+        engine.phase.displayName
     }
 
     var body: some View {
@@ -130,10 +126,6 @@ struct ProgressRingView: View {
 
 private struct PreviewDurationProvider: DurationProviding {
     func duration(for phase: Phase) -> Int {
-        switch phase {
-        case .focus: 25 * 60
-        case .shortBreak: 5 * 60
-        case .longBreak: 15 * 60
-        }
+        PhaseDurations.classic.seconds(for: phase)
     }
 }

@@ -6,7 +6,7 @@ import Observation
     private(set) var status: RunStatus
     private(set) var sessionIndex: Int
     static let sessionsPerCycle = 4
-    let sessionsPerCycle = TimerEngine.sessionsPerCycle
+    var sessionsPerCycle: Int { Self.sessionsPerCycle }
     private(set) var remainingSeconds: Int
     private var endDate: Date?
     private var pausedRemaining: TimeInterval?

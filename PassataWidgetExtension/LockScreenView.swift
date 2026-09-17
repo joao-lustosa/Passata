@@ -9,11 +9,7 @@ struct LockScreenView: View {
     private let material = Color.white.opacity(0.16)
 
     private var phaseLabel: String {
-        switch state.phase {
-        case .focus: "Focus"
-        case .shortBreak: "Short Break"
-        case .longBreak: "Long Break"
-        }
+        state.phase.displayName
     }
 
     private var accent: Color { PassataPalette.accent(for: state.phase) }
@@ -50,7 +46,7 @@ struct LockScreenView: View {
                         .background(material, in: Capsule())
                 }
             }
-            progressView
+            LiveActivityLinearProgressBar(render: state.render, accent: accent, track: track)
             LiveActivitySessionDotsView(
                 phase: state.phase,
                 sessionIndex: state.sessionIndex,
@@ -62,52 +58,15 @@ struct LockScreenView: View {
         .padding(.horizontal, 18)
     }
 
-    @ViewBuilder
-    private var timeContent: some View {
-        switch state.render {
-        case let .running(phaseStart, phaseEnd):
-            Text(timerInterval: phaseStart...phaseEnd, countsDown: true)
-        case let .idle(seconds), let .paused(seconds, _):
-            Text(formatted(seconds: seconds))
-        case .complete:
-            Text("00:00")
-        }
-    }
-
     private var timeView: some View {
-        timeContent
+        LiveActivityTimeText(render: state.render)
             .font(.system(size: 46, weight: .light))
             .monospacedDigit()
             .tracking(-1.5)
             .foregroundStyle(ink)
     }
 
-    @ViewBuilder
-    private var progressView: some View {
-        switch state.render {
-        case let .running(phaseStart, phaseEnd):
-            ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false) {
-                EmptyView()
-            } currentValueLabel: {
-                EmptyView()
-            }
-                .tint(accent)
-                .progressViewStyle(.linear)
-        default:
-            GeometryReader { proxy in
-                Capsule()
-                    .fill(track)
-                    .overlay(alignment: .leading) {
-                        Capsule().fill(accent).frame(width: proxy.size.width * CGFloat(state.render.staticProgress))
-                    }
-            }
-            .frame(height: 6)
-        }
-    }
 
-    private func formatted(seconds: Int) -> String {
-        String(format: "%02d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
-    }
 }
 
 #Preview("Lock Screen progress states") {

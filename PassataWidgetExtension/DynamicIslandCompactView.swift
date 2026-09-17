@@ -72,7 +72,7 @@ struct DynamicIslandCompactTrailingView: View {
     let state: PassataActivityAttributes.ContentState
 
     var body: some View {
-        timeContent
+        LiveActivityTimeText(render: state.render)
             .font(.system(size: 15, weight: .semibold))
             .monospacedDigit()
             .foregroundStyle(.white)
@@ -81,19 +81,4 @@ struct DynamicIslandCompactTrailingView: View {
             .padding(.trailing, 13)
     }
 
-    @ViewBuilder
-    private var timeContent: some View {
-        switch state.render {
-        case let .running(phaseStart, phaseEnd):
-            Text(timerInterval: phaseStart...phaseEnd, countsDown: true)
-        case let .idle(seconds), let .paused(seconds, _):
-            Text(formatted(seconds: seconds))
-        case .complete:
-            Text("00:00")
-        }
-    }
-
-    private func formatted(seconds: Int) -> String {
-        String(format: "%02d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
-    }
 }

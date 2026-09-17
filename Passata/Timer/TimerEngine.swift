@@ -3,13 +3,20 @@ import Observation
 
 @Observable final class TimerEngine {
     private(set) var phase: Phase
-    private(set) var status: RunStatus
+    private(set) var state: TimerRunState
+    var status: RunStatus {
+        switch state {
+        case .idle: .idle
+        case .running: .running
+        case .paused: .paused
+        case .complete: .complete
+        }
+    }
     private(set) var sessionIndex: Int
     static let sessionsPerCycle = 4
     var sessionsPerCycle: Int { Self.sessionsPerCycle }
+    // Stored so the macOS no-window timer loop triggers observation updates.
     private(set) var remainingSeconds: Int
-    private var endDate: Date?
-    private var pausedRemaining: TimeInterval?
     var autoStartNext = true
     var onPhaseCompleted: (() -> Void)?
     enum TransitionKind { case started, resumed, paused, completed, skipped, startedNext, reset }
@@ -37,51 +44,43 @@ import Observation
 
         if let snapshot = persister.load() {
             phase = snapshot.phase
-            status = snapshot.status
+            state = TimerRunState(status: snapshot.status, endDate: snapshot.endDate, pausedRemaining: snapshot.pausedRemaining)
             sessionIndex = snapshot.sessionIndex
-            endDate = snapshot.endDate
-            pausedRemaining = snapshot.pausedRemaining
-            // Definite-initialization placeholder; the two calls below immediately derive it.
             remainingSeconds = 0
-            recomputeRemaining()
+            if state == .idle {
+                remainingSeconds = durationProvider.duration(for: phase)
+            } else {
+                recomputeRemaining()
+            }
             checkForCompletion()
         } else {
             phase = .focus
-            status = .idle
+            state = .idle
             sessionIndex = 1
             remainingSeconds = durationProvider.duration(for: .focus)
-            endDate = nil
-            pausedRemaining = TimeInterval(remainingSeconds)
         }
     }
 
     deinit { autoAdvanceTask?.cancel() }
 
     func start() {
-        guard status == .idle else { return }
-        pausedRemaining = nil
-        endDate = dateProvider.now.addingTimeInterval(TimeInterval(durationProvider.duration(for: phase)))
-        status = .running
+        guard state == .idle else { return }
+        state = .running(endDate: dateProvider.now.addingTimeInterval(TimeInterval(durationProvider.duration(for: phase))))
         persist()
         emitStateChange(.started)
     }
 
     func resume() {
-        guard status == .paused else { return }
-        let remaining = pausedRemaining ?? 0
-        endDate = dateProvider.now.addingTimeInterval(remaining)
-        pausedRemaining = nil
-        status = .running
+        guard case .paused(let remaining) = state else { return }
+        state = .running(endDate: dateProvider.now.addingTimeInterval(remaining))
         recomputeRemaining()
         persist()
         emitStateChange(.resumed)
     }
 
     func pause() {
-        guard status == .running else { return }
-        pausedRemaining = max(0, endDate?.timeIntervalSince(dateProvider.now) ?? 0)
-        endDate = nil
-        status = .paused
+        guard case .running(let endDate) = state else { return }
+        state = .paused(remaining: max(0, endDate.timeIntervalSince(dateProvider.now)))
         recomputeRemaining()
         persist()
         emitStateChange(.paused)
@@ -97,12 +96,10 @@ import Observation
     }
 
     func onReset() {
-        guard status != .idle else { return }
+        guard state != .idle else { return }
         autoAdvanceTask?.cancel()
         let fullDuration = durationProvider.duration(for: phase)
-        status = .idle
-        endDate = nil
-        pausedRemaining = TimeInterval(fullDuration)
+        state = .idle
         remainingSeconds = fullDuration
         persist()
         emitStateChange(.reset)
@@ -110,29 +107,31 @@ import Observation
 
     func onSkip() {
         autoAdvanceTask?.cancel()
-        transitionToNextPhase(status: .idle)
+        transitionToNextPhase(autoStart: false)
         emitStateChange(.skipped)
     }
 
     func onStartNext() {
         autoAdvanceTask?.cancel()
-        transitionToNextPhase(status: .running)
+        transitionToNextPhase(autoStart: true)
         emitStateChange(.startedNext)
     }
 
     func recomputeRemaining() {
-        if status == .running, let endDate {
+        switch state {
+        case .running(let endDate):
             remainingSeconds = max(0, Int(ceil(endDate.timeIntervalSince(dateProvider.now))))
-        } else if let pausedRemaining {
-            remainingSeconds = max(0, Int(ceil(pausedRemaining)))
+        case .paused(let remaining):
+            remainingSeconds = max(0, Int(ceil(remaining)))
+        case .idle, .complete:
+            break
         }
     }
 
     func checkForCompletion() {
-        guard status == .running, let endDate, endDate.timeIntervalSince(dateProvider.now) <= 0 else { return }
+        guard case .running(let endDate) = state, endDate.timeIntervalSince(dateProvider.now) <= 0 else { return }
         remainingSeconds = 0
-        status = .complete
-        self.endDate = nil
+        state = .complete
         onPhaseCompleted?()
         persist()
         scheduleAutoAdvanceIfNeeded()
@@ -142,18 +141,15 @@ import Observation
     func syncIdleDuration(ifCurrentPhaseIs phase: Phase, seconds: Int) {
         guard status == .idle, self.phase == phase else { return }
         remainingSeconds = seconds
-        pausedRemaining = TimeInterval(seconds)
     }
 
-    private func transitionToNextPhase(status nextStatus: RunStatus) {
+    private func transitionToNextPhase(autoStart: Bool) {
         let next = phase.next(sessionIndex: sessionIndex, sessionsPerCycle: sessionsPerCycle)
         phase = next.phase
         sessionIndex = next.sessionIndex
         let fullDuration = durationProvider.duration(for: phase)
         remainingSeconds = fullDuration
-        pausedRemaining = nextStatus == .idle ? TimeInterval(fullDuration) : nil
-        endDate = nextStatus == .running ? dateProvider.now.addingTimeInterval(TimeInterval(fullDuration)) : nil
-        status = nextStatus
+        state = autoStart ? .running(endDate: dateProvider.now.addingTimeInterval(TimeInterval(fullDuration))) : .idle
         persist()
     }
 
@@ -162,16 +158,15 @@ import Observation
     }
 
     var currentRenderState: RenderState {
-        switch status {
-        case .running:
-            let phaseEnd = endDate!
+        switch state {
+        case .running(let phaseEnd):
             let phaseStart = phaseEnd.addingTimeInterval(-TimeInterval(durationProvider.duration(for: phase)))
             return .running(phaseStart: phaseStart, phaseEnd: phaseEnd)
         case .idle:
             return .idle(phaseDurationSeconds: durationProvider.duration(for: phase))
-        case .paused:
+        case .paused(let remaining):
             return .paused(
-                remainingSeconds: Int(pausedRemaining ?? 0),
+                remainingSeconds: Int(remaining),
                 phaseDurationSeconds: durationProvider.duration(for: phase)
             )
         case .complete:
@@ -190,6 +185,7 @@ import Observation
     }
 
     private func persist() {
+        let (status, endDate, pausedRemaining) = state.snapshotFields
         persister.save(TimerSnapshot(phase: phase, status: status, sessionIndex: sessionIndex, endDate: endDate, pausedRemaining: pausedRemaining))
     }
 }

@@ -2,22 +2,14 @@ import Foundation
 
 actor LiveActivityController {
     private let publisher: any LiveActivityPublishing
-    private let events: AsyncStream<StateChangeEvent>
-    private let continuation: AsyncStream<StateChangeEvent>.Continuation
-
-    struct StateChangeEvent {
-        let phase: Phase
-        let sessionIndex: Int
-        let render: RenderState
-        let kind: TimerEngine.TransitionKind
-    }
+    private let relay = StateChangeRelay()
 
     init(publisher: any LiveActivityPublishing = SystemLiveActivityPublisher()) {
         self.publisher = publisher
-        (events, continuation) = AsyncStream<StateChangeEvent>.makeStream()
+        let relay = relay
         Task { [weak self] in
-            guard let self else { return }
-            for await event in self.events {
+            for await event in relay.events {
+                guard let self else { return }
                 await self.handle(event)
             }
         }
@@ -29,7 +21,7 @@ actor LiveActivityController {
         render: RenderState,
         kind: TimerEngine.TransitionKind
     ) {
-        continuation.yield(StateChangeEvent(phase: phase, sessionIndex: sessionIndex, render: render, kind: kind))
+        relay.submit(StateChangeEvent(phase: phase, sessionIndex: sessionIndex, render: render, kind: kind))
     }
 
     private func handle(_ event: StateChangeEvent) async {

@@ -1,9 +1,11 @@
 #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
 import ActivityKit
+#endif
 import Foundation
 import XCTest
 @testable import Passata
 
+#if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
 @MainActor
 final class LiveActivityControllerTests: XCTestCase {
     func testTransitionKindsMapToPublisherActionsInSubmissionOrder() async {
@@ -64,6 +66,8 @@ final class LiveActivityControllerTests: XCTestCase {
 
 }
 
+#endif
+
 @MainActor
 final class PhaseCompletionControllerTests: XCTestCase {
     func testEveryTransitionKindMapsToTheNotificationDecisionTable() async {
@@ -100,6 +104,7 @@ private func waitUntil(_ condition: @escaping () -> Bool) async {
     XCTFail("Timed out waiting for the actor event consumer")
 }
 
+#if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
 private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
     struct Snapshot {
         let requestCount: Int
@@ -157,6 +162,8 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
     }
 }
 
+#endif
+
 private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
     struct Snapshot {
         let scheduleCount: Int
@@ -186,4 +193,3 @@ private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
         lock.withLock { cancelCount += 1 }
     }
 }
-#endif

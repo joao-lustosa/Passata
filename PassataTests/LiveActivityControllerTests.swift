@@ -62,15 +62,6 @@ final class LiveActivityControllerTests: XCTestCase {
         XCTAssertEqual(publisher.snapshot().updateCount, 1)
     }
 
-    private func waitUntil(
-        _ condition: @escaping () -> Bool
-    ) async {
-        for _ in 0..<100 {
-            if condition() { return }
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        XCTFail("Timed out waiting for the actor event consumer")
-    }
 }
 
 @MainActor
@@ -98,15 +89,15 @@ final class PhaseCompletionControllerTests: XCTestCase {
         XCTAssertEqual(notifier.snapshot().cancelCount, 4)
     }
 
-    private func waitUntil(
-        _ condition: @escaping () -> Bool
-    ) async {
-        for _ in 0..<100 {
-            if condition() { return }
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        XCTFail("Timed out waiting for the actor event consumer")
+}
+
+@MainActor
+private func waitUntil(_ condition: @escaping () -> Bool) async {
+    for _ in 0..<100 {
+        if condition() { return }
+        try? await Task.sleep(for: .milliseconds(10))
     }
+    XCTFail("Timed out waiting for the actor event consumer")
 }
 
 private final class RecordingLiveActivityPublisher: LiveActivityPublishing {

@@ -25,14 +25,14 @@ struct DynamicIslandExpandedView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                timeContent
+                LiveActivityTimeText(render: state.render)
                     .font(.system(size: 18, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(.white)
                     .lineLimit(1)
             }
 
-            progressView
+            LiveActivityLinearProgressBar(render: state.render, accent: accent, track: track)
 
             HStack(alignment: .center, spacing: 12) {
                 LiveActivitySessionDotsView(
@@ -49,42 +49,6 @@ struct DynamicIslandExpandedView: View {
         .padding(.horizontal, 16)
     }
 
-    @ViewBuilder
-    private var timeContent: some View {
-        switch state.render {
-        case let .running(phaseStart, phaseEnd):
-            Text(timerInterval: phaseStart...phaseEnd, countsDown: true)
-        case let .idle(seconds), let .paused(seconds, _):
-            Text(formatted(seconds: seconds))
-        case .complete:
-            Text("00:00")
-        }
-    }
-
-    @ViewBuilder
-    private var progressView: some View {
-        switch state.render {
-        case let .running(phaseStart, phaseEnd):
-            ProgressView(timerInterval: phaseStart...phaseEnd, countsDown: false) {
-                EmptyView()
-            } currentValueLabel: {
-                EmptyView()
-            }
-                .tint(accent)
-                .progressViewStyle(.linear)
-        default:
-            GeometryReader { proxy in
-                Capsule()
-                    .fill(track)
-                    .overlay(alignment: .leading) {
-                        Capsule()
-                            .fill(accent)
-                            .frame(width: proxy.size.width * CGFloat(state.render.staticProgress))
-                    }
-            }
-            .frame(height: 6)
-        }
-    }
 
     // Non-interactive placeholder -- AppIntent-driven pause/resume deferred, see architect-spec.md section 14.6.
     private var pauseControl: some View {
@@ -114,9 +78,6 @@ struct DynamicIslandExpandedView: View {
         .background(material, in: Capsule())
     }
 
-    private func formatted(seconds: Int) -> String {
-        seconds.asClockString
-    }
 }
 
 #Preview("Dynamic Island expanded progress states") {

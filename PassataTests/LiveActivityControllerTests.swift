@@ -8,6 +8,49 @@ import XCTest
 #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
 @MainActor
 final class LiveActivityControllerTests: XCTestCase {
+    func testRequestFailureDoesNotStopQueuedPausedEvent() async {
+        let publisher = RecordingLiveActivityPublisher(failNextRequest: true)
+        let controller = LiveActivityController(publisher: publisher)
+        let deadline = Date(timeIntervalSinceReferenceDate: 220)
+        let running = RenderState.running(phaseStart: Date(timeIntervalSinceReferenceDate: 100), phaseEnd: deadline)
+        let paused = RenderState.paused(remainingSeconds: 75, phaseDurationSeconds: 120)
+
+        controller.submit(phase: .focus, sessionIndex: 2, render: running, kind: .started)
+        controller.submit(phase: .focus, sessionIndex: 2, render: paused, kind: .paused)
+        await waitUntil { publisher.snapshot().updateCount == 1 }
+
+        XCTAssertEqual(publisher.snapshot().requestFailureCount, 1)
+        let active = await publisher.hasActiveActivity()
+        XCTAssertFalse(active)
+        XCTAssertEqual(publisher.snapshot().publications, [
+            .init(action: "request", content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4, render: running), staleDate: deadline),
+            .init(action: "update", content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4, render: paused), staleDate: nil)
+        ])
+    }
+
+    func testReconcileRequestFailureAllowsLaterSubmittedRequest() async {
+        let publisher = RecordingLiveActivityPublisher(failNextRequest: true)
+        let controller = LiveActivityController(publisher: publisher)
+        let deadline = Date(timeIntervalSinceReferenceDate: 480)
+        let running = RenderState.running(phaseStart: Date(timeIntervalSinceReferenceDate: 300), phaseEnd: deadline)
+        let content = PassataActivityAttributes.ContentState(phase: .longBreak, sessionIndex: 4, sessionsPerCycle: 4, render: running)
+
+        await controller.reconcileOnLaunch(phase: .longBreak, sessionIndex: 4, status: .running, render: running)
+        XCTAssertEqual(publisher.snapshot().requestFailureCount, 1)
+        let activeAfterFailure = await publisher.hasActiveActivity()
+        XCTAssertFalse(activeAfterFailure)
+
+        controller.submit(phase: .longBreak, sessionIndex: 4, render: running, kind: .started)
+        await waitUntil { publisher.snapshot().requestCount == 2 }
+        let activeAfterRecovery = await publisher.hasActiveActivity()
+        XCTAssertTrue(activeAfterRecovery)
+        XCTAssertEqual(publisher.snapshot().requestFailureCount, 1)
+        XCTAssertEqual(publisher.snapshot().publications, [
+            .init(action: "request", content: content, staleDate: deadline),
+            .init(action: "request", content: content, staleDate: deadline)
+        ])
+    }
+
     func testTransitionKindsMapToPublisherActionsInSubmissionOrder() async {
         let publisher = RecordingLiveActivityPublisher()
         let controller = LiveActivityController(publisher: publisher)
@@ -157,6 +200,7 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 
     struct Snapshot {
         let requestCount: Int
+        let requestFailureCount: Int
         let updateCount: Int
         let endCount: Int
         let actions: [String]
@@ -170,9 +214,13 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
     private(set) var active: Bool
     private(set) var actions: [String] = []
     private var publications: [Publication] = []
+    private var failNextRequest: Bool
+    private var requestFailureCount = 0
+    private enum RequestError: Error { case unavailable }
 
-    init(active: Bool = false) {
+    init(active: Bool = false, failNextRequest: Bool = false) {
         self.active = active
+        self.failNextRequest = failNextRequest
     }
 
     func setActive(_ value: Bool) {
@@ -181,7 +229,7 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 
     func snapshot() -> Snapshot {
         lock.withLock {
-            Snapshot(requestCount: requestCount, updateCount: updateCount, endCount: endCount, actions: actions, publications: publications)
+            Snapshot(requestCount: requestCount, requestFailureCount: requestFailureCount, updateCount: updateCount, endCount: endCount, actions: actions, publications: publications)
         }
     }
 
@@ -190,10 +238,15 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
     }
 
     func request(_ content: PassataActivityAttributes.ContentState, staleDate: Date?) throws {
-        lock.withLock {
+        try lock.withLock {
             requestCount += 1
             actions.append("request")
             publications.append(.init(action: "request", content: content, staleDate: staleDate))
+            if failNextRequest {
+                failNextRequest = false
+                requestFailureCount += 1
+                throw RequestError.unavailable
+            }
             active = true
         }
     }

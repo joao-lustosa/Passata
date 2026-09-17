@@ -6,7 +6,7 @@ protocol PhaseCompletionNotifying {
     func cancelPending() async
 }
 
-struct SystemPhaseCompletionNotifier: PhaseCompletionNotifying {
+nonisolated struct SystemPhaseCompletionNotifier: PhaseCompletionNotifying {
     private let notificationIdentifier = "phase-completion"
     private let center: any UserNotificationScheduling
 

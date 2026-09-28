@@ -166,7 +166,7 @@ import Observation
             return .idle(phaseDurationSeconds: durationProvider.duration(for: phase))
         case .paused(let remaining):
             return .paused(
-                remainingSeconds: Int(remaining),
+                remainingSeconds: Int(ceil(remaining)),
                 phaseDurationSeconds: durationProvider.duration(for: phase)
             )
         case .complete:

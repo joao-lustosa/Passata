@@ -1,7 +1,7 @@
 import XCTest
 @testable import Passata
 
-final class CompletionFeedbackPlayingTests: XCTestCase {
+@MainActor final class CompletionFeedbackPlayingTests: XCTestCase {
     // SystemCompletionFeedback calls opaque system APIs (AudioServicesPlaySystemSound,
     // UINotificationFeedbackGenerator, NSSound.beep()) with no observable return value, so
     // these can't assert that sound or haptics actually fired. What they do guard: every

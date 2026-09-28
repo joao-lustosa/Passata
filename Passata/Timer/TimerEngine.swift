@@ -13,7 +13,7 @@ import Observation
         }
     }
     private(set) var sessionIndex: Int
-    static let sessionsPerCycle = 4
+    nonisolated static let sessionsPerCycle = 4
     var sessionsPerCycle: Int { Self.sessionsPerCycle }
     // Stored so the macOS no-window timer loop triggers observation updates.
     private(set) var remainingSeconds: Int
@@ -22,7 +22,7 @@ import Observation
     enum TransitionKind { case started, resumed, paused, completed, skipped, startedNext, reset }
     var onStateChange: ((_ phase: Phase, _ sessionIndex: Int, _ render: RenderState, _ kind: TransitionKind) -> Void)?
 
-    private var autoAdvanceTask: Task<Void, Never>?
+    nonisolated(unsafe) private var autoAdvanceTask: Task<Void, Never>?
     private let durationProvider: any DurationProviding
     private let dateProvider: any DateProviding
     private let persister: any TimerStatePersisting

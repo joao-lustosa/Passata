@@ -224,7 +224,8 @@ private func waitUntil(_ condition: @escaping () -> Bool) async {
 }
 
 #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
-private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
+// All mutable state is private and accessed only while holding lock.
+nonisolated private final class RecordingLiveActivityPublisher: LiveActivityPublishing, @unchecked Sendable {
     struct Publication: Equatable {
         let action: String
         let content: PassataActivityAttributes.ContentState?
@@ -241,11 +242,11 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
     }
 
     private let lock = NSLock()
-    private(set) var requestCount = 0
-    private(set) var updateCount = 0
-    private(set) var endCount = 0
-    private(set) var active: Bool
-    private(set) var actions: [String] = []
+    private var requestCount = 0
+    private var updateCount = 0
+    private var endCount = 0
+    private var active: Bool
+    private var actions: [String] = []
     private var publications: [Publication] = []
     private var failNextRequest: Bool
     private var requestFailureCount = 0
@@ -304,7 +305,8 @@ private final class RecordingLiveActivityPublisher: LiveActivityPublishing {
 
 #endif
 
-private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
+// All mutable state is private and accessed only while holding lock.
+nonisolated private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying, @unchecked Sendable {
     enum Action: Equatable {
         case schedule(phase: Phase, deadline: Date)
         case cancel
@@ -319,9 +321,9 @@ private final class RecordingPhaseCompletionNotifier: PhaseCompletionNotifying {
     }
 
     private let lock = NSLock()
-    private(set) var scheduleCount = 0
-    private(set) var cancelCount = 0
-    private(set) var scheduledPhases: [Phase] = []
+    private var scheduleCount = 0
+    private var cancelCount = 0
+    private var scheduledPhases: [Phase] = []
     private var scheduledDeadlines: [Date] = []
     private var actions: [Action] = []
 

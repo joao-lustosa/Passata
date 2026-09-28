@@ -22,7 +22,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Verify Xcode
         run: xcodebuild -version
       - name: Build and test
@@ -37,7 +37,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Verify Xcode
         run: xcodebuild -version
       - name: Select an available iPhone simulator

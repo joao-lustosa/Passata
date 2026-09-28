@@ -2,8 +2,8 @@ import Foundation
 import UserNotifications
 
 protocol PhaseCompletionNotifying {
-    func schedule(at phaseEnd: Date, phase: Phase) async
-    func cancelPending() async
+    nonisolated func schedule(at phaseEnd: Date, phase: Phase) async
+    nonisolated func cancelPending() async
 }
 
 nonisolated struct SystemPhaseCompletionNotifier: PhaseCompletionNotifying {

@@ -15,9 +15,9 @@ struct DynamicIslandExpandedView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                // TODO: replace the timer glyph with the final app icon artwork.
-                Image(systemName: "timer")
-                    .font(.system(size: 14, weight: .semibold))
+                PassataGlyphShape()
+                    .fill()
+                    .frame(width: 14, height: 14)
                     .foregroundStyle(.white)
                     .frame(width: 26, height: 26)
                     .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 7.5))

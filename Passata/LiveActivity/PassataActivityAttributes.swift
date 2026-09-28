@@ -1,6 +1,6 @@
 import ActivityKit
 
-struct PassataActivityAttributes: ActivityAttributes {
+nonisolated struct PassataActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var phase: Phase
         var sessionIndex: Int

@@ -1,6 +1,6 @@
 import Foundation
 
-enum RenderState: Codable, Hashable {
+nonisolated enum RenderState: Codable, Hashable {
     case running(phaseStart: Date, phaseEnd: Date)
     case idle(phaseDurationSeconds: Int)
     case paused(remainingSeconds: Int, phaseDurationSeconds: Int)

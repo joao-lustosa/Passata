@@ -96,7 +96,7 @@ final class TimerEngineTests: XCTestCase {
         }
     }
 
-    func testFractionalRemainingRoundsUpButPausedRenderTruncates() {
+    func testFractionalRemainingRoundsUpConsistentlyEverywhere() {
         let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
         let engine = makeEngine(clock: clock)
         engine.start()
@@ -107,7 +107,7 @@ final class TimerEngineTests: XCTestCase {
         engine.pause()
         XCTAssertEqual(engine.state, .paused(remaining: 89.75))
         XCTAssertEqual(engine.remainingSeconds, 90)
-        XCTAssertEqual(engine.currentRenderState, .paused(remainingSeconds: 89, phaseDurationSeconds: 120))
+        XCTAssertEqual(engine.currentRenderState, .paused(remainingSeconds: 90, phaseDurationSeconds: 120))
         clock.now = clock.now.addingTimeInterval(500)
         engine.recomputeRemaining()
         XCTAssertEqual(engine.remainingSeconds, 90)

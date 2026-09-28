@@ -100,7 +100,7 @@ final class SystemPhaseCompletionNotifierTests: XCTestCase {
     private enum TestError: Error { case unavailable }
 }
 
-private final class FakeUserNotificationScheduling: UserNotificationScheduling {
+nonisolated private final class FakeUserNotificationScheduling: UserNotificationScheduling {
     var status: UNAuthorizationStatus = .authorized
     var requestAuthorizationResult: Result<Bool, Error> = .success(true)
     var addResult: Result<Void, Error> = .success(())

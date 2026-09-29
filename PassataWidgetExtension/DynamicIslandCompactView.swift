@@ -11,7 +11,6 @@ struct DynamicIslandCompactLeadingView: View {
             .padding(.leading, 12)
             .padding(.trailing, 6)
     }
-
 }
 
 struct ActivityProgressView: View {
@@ -80,5 +79,4 @@ struct DynamicIslandCompactTrailingView: View {
             .padding(.leading, 6)
             .padding(.trailing, 13)
     }
-
 }

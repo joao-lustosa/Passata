@@ -1,14 +1,7 @@
 import SwiftUI
 
-private struct PassataDebugReduceTransparencyKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
 extension EnvironmentValues {
-    var passataDebugReduceTransparency: Bool {
-        get { self[PassataDebugReduceTransparencyKey.self] }
-        set { self[PassataDebugReduceTransparencyKey.self] = newValue }
-    }
+    @Entry var passataDebugReduceTransparency: Bool = false
 }
 
 #if DEBUG

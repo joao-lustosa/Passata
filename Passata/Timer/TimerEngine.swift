@@ -22,7 +22,8 @@ import Observation
     enum TransitionKind { case started, resumed, paused, completed, skipped, startedNext, reset }
     var onStateChange: ((_ phase: Phase, _ sessionIndex: Int, _ render: RenderState, _ kind: TransitionKind) -> Void)?
 
-    nonisolated(unsafe) private var autoAdvanceTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var autoAdvanceTask: Task<Void, Never>?
     private let durationProvider: any DurationProviding
     private let dateProvider: any DateProviding
     private let persister: any TimerStatePersisting

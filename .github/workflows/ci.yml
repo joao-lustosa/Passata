@@ -2,7 +2,7 @@ name: Build and test
 
 on:
   push:
-    branches: [develop, main, feature/second-pass-cleanup]
+    branches: [develop, main]
   pull_request:
     branches: [develop, main]
 

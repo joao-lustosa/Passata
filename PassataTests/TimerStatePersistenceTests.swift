@@ -1,10 +1,6 @@
 import Foundation
-import XCTest
 import Testing
 @testable import Passata
-
-@MainActor
-final class TimerStatePersistenceTests: XCTestCase {}
 
 @Test(arguments: [
     TimerSnapshot(phase: .focus, status: .idle, sessionIndex: 1, endDate: nil, pausedRemaining: nil),

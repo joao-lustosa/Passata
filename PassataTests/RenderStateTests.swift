@@ -1,10 +1,6 @@
 import Foundation
-import XCTest
 import Testing
 @testable import Passata
-
-@MainActor
-final class RenderStateTests: XCTestCase {}
 
 @Test(arguments: [
     (RenderState.idle(phaseDurationSeconds: 120), 0.0),

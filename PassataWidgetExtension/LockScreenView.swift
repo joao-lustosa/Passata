@@ -65,8 +65,6 @@ struct LockScreenView: View {
             .tracking(-1.5)
             .foregroundStyle(ink)
     }
-
-
 }
 
 #Preview("Lock Screen progress states") {

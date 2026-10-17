@@ -523,6 +523,7 @@
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xrsimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "AppDelegate.swift MenuBarExtraContentView.swift PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -574,6 +575,7 @@
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xrsimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "AppDelegate.swift MenuBarExtraContentView.swift PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

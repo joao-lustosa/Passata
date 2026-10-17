@@ -1,0 +1,28 @@
+# Line ending normalization for everything not overridden below
+* text=auto
+
+# Xcode project files
+*.pbxproj          text merge=union
+*.xcworkspacedata  text
+*.xcsettings       text
+
+# Swift source
+*.swift            text diff=swift
+
+# Structured text / config
+*.json             text
+*.plist            text
+*.strings          text
+*.md               text
+*.html             text
+
+# Images (App Icon, screenshots, etc. as they're added)
+*.png              binary
+*.jpg              binary
+*.jpeg             binary
+*.pdf              binary
+*.icns             binary
+
+# Keep repo metadata out of `git archive` exports
+.gitattributes     export-ignore
+.gitignore         export-ignore

@@ -1,0 +1,25 @@
+# <type>(<scope>): <subject>  (max 50 chars, imperative mood, no trailing period)
+
+
+# Body: what and why, not how (wrap at ~72 chars)
+
+
+# Footer: breaking changes, issue references (e.g. "Closes #12")
+
+
+# --------------------
+# type:
+#   feat     new feature
+#   fix      bug fix
+#   docs     documentation only
+#   style    formatting, no code meaning change
+#   refactor code change that's neither a fix nor a feature
+#   perf     performance improvement
+#   test     adding or correcting tests
+#   build    build system or dependencies
+#   ci       CI configuration
+#   chore    other changes that don't touch src or test files
+#   revert   reverts a previous commit
+#
+# scope: optional, the part of the app affected (e.g. "timer", "settings")
+# --------------------

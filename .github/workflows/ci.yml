@@ -1,0 +1,65 @@
+name: Build and test
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  macos:
+    name: macOS unit tests
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify Xcode
+        run: xcodebuild -version
+      - name: Build and test
+        run: >-
+          xcodebuild -scheme Passata -destination 'platform=macOS'
+          -only-testing:PassataTests -parallel-testing-enabled NO
+          CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO
+          build test
+
+  ios:
+    name: iOS unit tests
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify Xcode
+        run: xcodebuild -version
+      - name: Select an available iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcrun simctl list devices available
+          device_id=$(xcrun simctl list devices available --json | jq -er '
+            [.devices | to_entries[]
+             | select(.key | startswith("com.apple.CoreSimulator.SimRuntime.iOS-"))
+             | .key as $runtime
+             | ($runtime | split("iOS-")[1] | split("-") | map(tonumber)) as $version
+             | select($version[0] > 26 or ($version[0] == 26 and $version[1] >= 5))
+             | .value[] | select(.isAvailable and (.name | startswith("iPhone")))
+             | {udid, version: $version}]
+            | sort_by(.version) | last | .udid // empty')
+          echo "id=$device_id" >> "$GITHUB_OUTPUT"
+      - name: Build and test
+        run: >-
+          xcodebuild -scheme Passata
+          -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}'
+          -only-testing:PassataTests -parallel-testing-enabled NO
+          CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO
+          build test

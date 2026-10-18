@@ -10,7 +10,7 @@ struct PassataWidgetExtension: Widget {
                 .environment(\.colorScheme, .dark)
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.center) {
+                DynamicIslandExpandedRegion(.bottom) {
                     DynamicIslandExpandedView(state: context.state)
                         .environment(\.colorScheme, .dark)
                 }

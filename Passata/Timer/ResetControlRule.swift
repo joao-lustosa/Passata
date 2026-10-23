@@ -2,6 +2,17 @@ enum ResetControlAction: Equatable {
     case disabled
     case resetPhase
     case restartCycle
+
+    func perform(on engine: TimerEngine) {
+        switch self {
+        case .disabled:
+            break
+        case .resetPhase:
+            engine.onReset()
+        case .restartCycle:
+            engine.restartCycle()
+        }
+    }
 }
 
 enum ResetControlRule {

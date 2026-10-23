@@ -110,6 +110,16 @@ import Observation
         emitStateChange(.reset)
     }
 
+    func restartCycle() {
+        autoAdvanceTask?.cancel()
+        phase = .focus
+        sessionIndex = 1
+        state = .idle
+        remainingSeconds = durationProvider.duration(for: .focus)
+        persist()
+        emitStateChange(.reset)
+    }
+
     func onSkip() {
         autoAdvanceTask?.cancel()
         transitionToNextPhase(autoStart: false)

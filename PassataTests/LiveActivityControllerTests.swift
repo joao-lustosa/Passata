@@ -102,6 +102,45 @@ final class LiveActivityControllerTests: XCTestCase {
         ))
     }
 
+    func testRestartCycleEndsTheLiveActivity() async {
+        let publisher = RecordingLiveActivityPublisher()
+        let controller = LiveActivityController(publisher: publisher)
+        let clock = LiveActivityTestClock()
+        let initialState = TimerSnapshot(
+            phase: .longBreak,
+            status: .idle,
+            sessionIndex: 4,
+            endDate: nil,
+            pausedRemaining: nil
+        )
+        let engine = TimerEngine(
+            durationProvider: LiveActivityTestDurations(),
+            dateProvider: clock,
+            persister: LiveActivityTestStateStore(snapshot: initialState),
+            autoStartNext: false,
+            onStateChange: { phase, sessionIndex, render, kind in
+                controller.submit(phase: phase, sessionIndex: sessionIndex, render: render, kind: kind)
+            }
+        )
+
+        engine.start()
+        await waitUntil { publisher.snapshot().requestCount == 1 }
+        engine.restartCycle()
+        await waitUntil { publisher.snapshot().endCount == 1 }
+
+        XCTAssertEqual(engine.phase, .focus)
+        XCTAssertEqual(engine.sessionIndex, 1)
+        XCTAssertEqual(engine.status, .idle)
+        XCTAssertEqual(publisher.snapshot().publications.last, .init(
+            action: "end",
+            content: .init(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4,
+                           render: .idle(phaseDurationSeconds: 1500)),
+            staleDate: nil
+        ))
+        let isActive = await publisher.hasActiveActivity()
+        XCTAssertFalse(isActive)
+    }
+
     func testRequestFailureDoesNotStopQueuedPausedEvent() async {
         let publisher = RecordingLiveActivityPublisher(failNextRequest: true)
         let controller = LiveActivityController(publisher: publisher)
@@ -275,6 +314,39 @@ private extension LiveActivityController {
 
 @MainActor
 final class PhaseCompletionControllerTests: XCTestCase {
+    func testRestartCycleCancelsPendingCompletionNotifications() async {
+        let notifier = RecordingPhaseCompletionNotifier()
+        let controller = PhaseCompletionController(notifier: notifier)
+        let initialState = TimerSnapshot(
+            phase: .longBreak,
+            status: .idle,
+            sessionIndex: 4,
+            endDate: nil,
+            pausedRemaining: nil
+        )
+        let engine = TimerEngine(
+            durationProvider: PhaseCompletionTestDurations(),
+            dateProvider: PhaseCompletionTestClock(),
+            persister: RecordingPhaseCompletionStateStore(snapshot: initialState),
+            autoStartNext: false,
+            onStateChange: { phase, sessionIndex, render, kind in
+                controller.submit(phase: phase, sessionIndex: sessionIndex, render: render, kind: kind)
+            }
+        )
+
+        engine.start()
+        await waitUntil { notifier.snapshot().scheduleCount == 1 }
+        engine.restartCycle()
+        await waitUntil { notifier.snapshot().cancelCount == 1 }
+
+        XCTAssertEqual(engine.phase, .focus)
+        XCTAssertEqual(engine.sessionIndex, 1)
+        XCTAssertEqual(notifier.snapshot().actions, [
+            .schedule(phase: .longBreak, deadline: Date(timeIntervalSinceReferenceDate: 1_000)),
+            .cancel
+        ])
+    }
+
     func testInterleavedTransitionsPreserveOrderAndIgnoreNonRunningStarts() async {
         let notifier = RecordingPhaseCompletionNotifier()
         let controller = PhaseCompletionController(notifier: notifier)
@@ -389,7 +461,13 @@ private struct LiveActivityTestDurations: DurationProviding {
 
 @MainActor
 private final class LiveActivityTestStateStore: TimerStatePersisting {
-    func load() -> TimerSnapshot? { nil }
+    private let snapshot: TimerSnapshot?
+
+    init(snapshot: TimerSnapshot? = nil) {
+        self.snapshot = snapshot
+    }
+
+    func load() -> TimerSnapshot? { snapshot }
     func save(_ snapshot: TimerSnapshot) {}
 }
 
@@ -519,4 +597,26 @@ nonisolated private final class RecordingPhaseCompletionNotifier: PhaseCompletio
             actions.append(.cancel)
         }
     }
+}
+
+@MainActor
+private final class PhaseCompletionTestClock: DateProviding {
+    var now = Date(timeIntervalSinceReferenceDate: 100)
+}
+
+@MainActor
+private struct PhaseCompletionTestDurations: DurationProviding {
+    func duration(for phase: Phase) -> Int { PhaseDurations.classic.seconds(for: phase) }
+}
+
+@MainActor
+private final class RecordingPhaseCompletionStateStore: TimerStatePersisting {
+    private let snapshot: TimerSnapshot?
+
+    init(snapshot: TimerSnapshot? = nil) {
+        self.snapshot = snapshot
+    }
+
+    func load() -> TimerSnapshot? { snapshot }
+    func save(_ snapshot: TimerSnapshot) {}
 }

@@ -1,6 +1,7 @@
 import XCTest
 @testable import Passata
 
+@MainActor
 final class ResetControlRuleTests: XCTestCase {
     func testResetIsDisabledOnlyAtTheStartOfFocusOne() {
         for phase in Phase.allCases {
@@ -13,8 +14,9 @@ final class ResetControlRuleTests: XCTestCase {
     }
 
     func testResetTapRestartsTheCycleOnlyWhenAnIdlePhaseIsAlreadyAtItsStart() {
-        for phase in Phase.allCases where phase != .focus {
+        for phase in Phase.allCases {
             for sessionIndex in 1...TimerEngine.sessionsPerCycle {
+                guard phase != .focus || sessionIndex != 1 else { continue }
                 XCTAssertEqual(
                     ResetControlRule.action(for: phase, sessionIndex: sessionIndex, status: .idle),
                     .restartCycle

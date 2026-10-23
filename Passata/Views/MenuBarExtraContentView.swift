@@ -5,6 +5,8 @@ struct MenuBarExtraContentView: View {
     let engine: TimerEngine
     let store: TimerSettingsStore
 
+    @State private var isShowingRestartCycleConfirmation = false
+
     @Environment(\.openWindow) private var openWindow
 
     private var phaseLabel: String {
@@ -12,12 +14,11 @@ struct MenuBarExtraContentView: View {
     }
 
     private var primaryLabel: String {
-        switch engine.status {
-        case .idle: "Start"
-        case .running: "Pause"
-        case .paused: "Resume"
-        case .complete: ""
-        }
+        ResetControlRule.primaryLabel(for: engine.status)
+    }
+
+    private var resetAction: ResetControlAction {
+        ResetControlRule.action(for: engine.phase, sessionIndex: engine.sessionIndex, status: engine.status)
     }
 
     private var timeLabel: String {
@@ -76,8 +77,14 @@ struct MenuBarExtraContentView: View {
                     Button(primaryLabel, action: engine.togglePrimary)
                 }
                 Button("Skip", action: engine.onSkip)
-                Button("Reset", action: engine.onReset)
-                    .disabled(engine.status == .idle)
+                Button("Reset", action: performReset)
+                    .disabled(resetAction == .disabled)
+                    .accessibilityLabel("Reset")
+                    .accessibilityHint(ResetControlRule.accessibilityHint(for: resetAction))
+                    .accessibilityAction(named: Text("Restart Cycle"), requestRestartCycle)
+                    .contextMenu {
+                        Button("Restart Cycle", systemImage: "arrow.counterclockwise", action: requestRestartCycle)
+                    }
             }
 
             Divider()
@@ -94,9 +101,27 @@ struct MenuBarExtraContentView: View {
         }
         .padding(16)
         .frame(width: 260)
+        .alert("Restart cycle?", isPresented: $isShowingRestartCycleConfirmation) {
+            Button("Restart Cycle", role: .destructive) { engine.restartCycle() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your progress in this cycle will be lost.")
+        }
     }
 
     var label: some View {
         menuBarLabel
+    }
+
+    private func performReset() {
+        resetAction.perform(on: engine)
+    }
+
+    private func requestRestartCycle() {
+        if ResetControlRule.requiresRestartCycleConfirmation(for: engine.status) {
+            isShowingRestartCycleConfirmation = true
+        } else {
+            engine.restartCycle()
+        }
     }
 }

@@ -94,9 +94,6 @@ struct PassataApp: App {
         case .complete:
             break
         }
-        #if os(iOS)
-        BackgroundRefreshScheduler.schedule(for: engine)
-        #endif
         #endif
 
         #if os(macOS)
@@ -156,6 +153,11 @@ struct PassataApp: App {
         #else
         WindowGroup(id: "main") {
             timerScreenContent
+                .task {
+                    // The scene's backgroundTask modifier registers the launch handler after App.init.
+                    // Submit only once the scene content starts, after that registration is in place.
+                    BackgroundRefreshScheduler.schedule(for: engine)
+                }
         }
         #if os(iOS)
         .backgroundTask(.appRefresh(BackgroundRefreshScheduler.identifier)) {

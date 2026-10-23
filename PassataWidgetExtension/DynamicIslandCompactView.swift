@@ -8,8 +8,8 @@ struct DynamicIslandCompactLeadingView: View {
     var body: some View {
         ActivityProgressView(render: state.render, accent: accent)
             .frame(width: 19, height: 19)
-            .padding(.leading, 12)
-            .padding(.trailing, 6)
+            .padding(.leading, 4)
+            .padding(.trailing, 2)
     }
 }
 
@@ -71,12 +71,27 @@ struct DynamicIslandCompactTrailingView: View {
     let state: PassataActivityAttributes.ContentState
 
     var body: some View {
-        LiveActivityTimeText(render: state.render)
+        timeText
             .font(.system(size: 15, weight: .semibold))
             .monospacedDigit()
-            .foregroundStyle(.white)
+            .foregroundStyle(PassataPalette.accent(for: state.phase))
             .lineLimit(1)
-            .padding(.leading, 6)
-            .padding(.trailing, 13)
+            .minimumScaleFactor(0.5)
+            .multilineTextAlignment(.trailing)
+            .frame(maxWidth: 52, alignment: .trailing)
+    }
+
+    @ViewBuilder
+    private var timeText: some View {
+        if case let .running(phaseStart, phaseEnd) = state.render {
+            // The host updates this discrete format; it also stops at zero after expiry.
+            Text(.currentDate, format: .timer(
+                countingDownIn: phaseStart..<phaseEnd,
+                showsHours: false,
+                maxFieldCount: 2
+            ).locale(Locale(identifier: "en_US_POSIX")))
+        } else {
+            LiveActivityTimeText(render: state.render)
+        }
     }
 }

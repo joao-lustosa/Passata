@@ -8,6 +8,100 @@ import XCTest
 #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
 @MainActor
 final class LiveActivityControllerTests: XCTestCase {
+    func testSkipThenStartUpdatesExistingActivityWithRunningDates() async {
+        let publisher = RecordingLiveActivityPublisher()
+        let controller = LiveActivityController(publisher: publisher)
+        let clock = LiveActivityTestClock()
+        let engine = TimerEngine(
+            durationProvider: LiveActivityTestDurations(),
+            dateProvider: clock,
+            persister: LiveActivityTestStateStore(),
+            autoStartNext: false,
+            onStateChange: { phase, sessionIndex, render, kind in
+                controller.submit(phase: phase, sessionIndex: sessionIndex, render: render, kind: kind)
+            }
+        )
+
+        engine.start()
+        await waitUntil { publisher.snapshot().publications.count == 1 }
+        engine.onSkip()
+        engine.onSkip()
+        engine.start()
+        await waitUntil { publisher.snapshot().publications.count == 4 }
+        guard publisher.snapshot().publications.count == 4 else {
+            XCTFail("The activity must receive Start, both Skips, and the second Start.")
+            return
+        }
+
+        let focusStart = clock.now
+        let focusEnd = focusStart.addingTimeInterval(1500)
+        let running = RenderState.running(phaseStart: focusStart, phaseEnd: focusEnd)
+        XCTAssertEqual(engine.sessionIndex, 2)
+        XCTAssertEqual(engine.currentRenderState, running)
+        XCTAssertEqual(publisher.snapshot().requestCount, 1, "Start must reuse the activity displaying the skipped phase.")
+        XCTAssertEqual(publisher.snapshot().publications[1], .init(
+            action: "update",
+            content: .init(phase: .shortBreak, sessionIndex: 1, sessionsPerCycle: 4,
+                           render: .idle(phaseDurationSeconds: 300)),
+            staleDate: nil
+        ))
+        XCTAssertEqual(publisher.snapshot().publications[2], .init(
+            action: "update",
+            content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4,
+                           render: .idle(phaseDurationSeconds: 1500)),
+            staleDate: nil
+        ))
+        XCTAssertEqual(publisher.snapshot().publications.last, .init(
+            action: "update",
+            content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4, render: running),
+            staleDate: focusEnd
+        ))
+
+        clock.now = focusStart.addingTimeInterval(23)
+        engine.recomputeRemaining()
+        XCTAssertEqual(engine.remainingSeconds, 1477)
+        XCTAssertEqual(engine.currentRenderState, running, "The payload must retain dates so the host can count down.")
+        engine.pause()
+        clock.now = clock.now.addingTimeInterval(14)
+        engine.resume()
+        engine.onReset()
+        await waitUntil { publisher.snapshot().publications.count == 7 }
+        let payloads = publisher.snapshot().publications
+        guard payloads.count == 7 else {
+            XCTFail("The activity must receive Pause, Resume, and Reset.")
+            return
+        }
+        XCTAssertEqual(payloads[4], .init(
+            action: "update",
+            content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4,
+                           render: .paused(remainingSeconds: 1477, phaseDurationSeconds: 1500)),
+            staleDate: nil
+        ))
+        XCTAssertEqual(payloads[5], .init(
+            action: "update",
+            content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4,
+                           render: .running(phaseStart: focusStart.addingTimeInterval(14),
+                                            phaseEnd: focusEnd.addingTimeInterval(14))),
+            staleDate: focusEnd.addingTimeInterval(14)
+        ))
+        XCTAssertEqual(payloads[6], .init(
+            action: "end",
+            content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4,
+                           render: .idle(phaseDurationSeconds: 1500)),
+            staleDate: nil
+        ))
+
+        engine.start()
+        await waitUntil { publisher.snapshot().publications.count == 8 }
+        XCTAssertEqual(publisher.snapshot().requestCount, 2, "Reset ends the old activity, so the next Start requests a new one.")
+        XCTAssertEqual(publisher.snapshot().publications.last, .init(
+            action: "request",
+            content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4,
+                           render: .running(phaseStart: clock.now, phaseEnd: clock.now.addingTimeInterval(1500))),
+            staleDate: clock.now.addingTimeInterval(1500)
+        ))
+    }
+
     func testRequestFailureDoesNotStopQueuedPausedEvent() async {
         let publisher = RecordingLiveActivityPublisher(failNextRequest: true)
         let controller = LiveActivityController(publisher: publisher)
@@ -224,6 +318,22 @@ private func waitUntil(_ condition: @escaping () -> Bool) async {
 }
 
 #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
+@MainActor
+private final class LiveActivityTestClock: DateProviding {
+    var now = Date(timeIntervalSinceReferenceDate: 100)
+}
+
+@MainActor
+private struct LiveActivityTestDurations: DurationProviding {
+    func duration(for phase: Phase) -> Int { PhaseDurations.classic.seconds(for: phase) }
+}
+
+@MainActor
+private final class LiveActivityTestStateStore: TimerStatePersisting {
+    func load() -> TimerSnapshot? { nil }
+    func save(_ snapshot: TimerSnapshot) {}
+}
+
 // All mutable state is private and accessed only while holding lock.
 nonisolated private final class RecordingLiveActivityPublisher: LiveActivityPublishing, @unchecked Sendable {
     struct Publication: Equatable {

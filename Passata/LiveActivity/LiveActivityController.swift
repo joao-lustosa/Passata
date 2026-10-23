@@ -38,6 +38,10 @@ actor LiveActivityController {
 
         switch event.kind {
         case .started:
+            if await publisher.hasActiveActivity() {
+                await publisher.update(content, staleDate: staleDate)
+                return
+            }
             do {
                 try publisher.request(content, staleDate: staleDate)
             } catch {

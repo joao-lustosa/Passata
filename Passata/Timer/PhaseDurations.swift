@@ -13,3 +13,19 @@ struct PhaseDurations: Codable, Equatable {
         }
     }
 }
+
+extension PhaseDurations {
+    private enum CodingKeys: String, CodingKey {
+        case focusMinutes, shortBreakMinutes, longBreakMinutes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        focusMinutes = try container.decodeIfPresent(Int.self, forKey: .focusMinutes)
+            ?? Self.classic.focusMinutes
+        shortBreakMinutes = try container.decodeIfPresent(Int.self, forKey: .shortBreakMinutes)
+            ?? Self.classic.shortBreakMinutes
+        longBreakMinutes = try container.decodeIfPresent(Int.self, forKey: .longBreakMinutes)
+            ?? Self.classic.longBreakMinutes
+    }
+}

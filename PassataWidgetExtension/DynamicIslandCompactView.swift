@@ -76,11 +76,9 @@ struct DynamicIslandCompactTrailingView: View {
             .monospacedDigit()
             .foregroundStyle(PassataPalette.accent(for: state.phase))
             .lineLimit(1)
-            .minimumScaleFactor(0.6)
+            .minimumScaleFactor(0.5)
             .multilineTextAlignment(.trailing)
-            .frame(width: 64, alignment: .trailing)
-            .padding(.leading, 2)
-            .padding(.trailing, 4)
+            .frame(maxWidth: 52, alignment: .trailing)
     }
 
     @ViewBuilder
@@ -90,8 +88,8 @@ struct DynamicIslandCompactTrailingView: View {
             Text(.currentDate, format: .timer(
                 countingDownIn: phaseStart..<phaseEnd,
                 showsHours: false,
-                maxFieldCount: 1
-            ))
+                maxFieldCount: 2
+            ).locale(Locale(identifier: "en_US_POSIX")))
         } else {
             LiveActivityTimeText(render: state.render)
         }

@@ -78,7 +78,19 @@ struct SettingsSheetView: View {
                     ToggleRowView(label: "Haptics", isOn: hapticsBinding)
                     rowDivider
                     ToggleRowView(label: "Auto-Start Next Phase", isOn: autoStartBinding)
+                    #if os(iOS)
+                    rowDivider
+                    ToggleRowView(label: "Respect Silent Mode", isOn: respectSilentModeBinding)
+                    #endif
                 }
+                #if os(iOS)
+                Text("Notifications always follow your iPhone's silent setting")
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(Color("PassataInk2"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 7)
+                #endif
 
                 VStack(spacing: 2) {
                     Text("Passata")
@@ -117,6 +129,12 @@ struct SettingsSheetView: View {
     private var autoStartBinding: Binding<Bool> {
         Binding(get: { store.settings.autoStartNext }, set: { _ in store.toggleAutoStart() })
     }
+
+    #if os(iOS)
+    private var respectSilentModeBinding: Binding<Bool> {
+        Binding(get: { store.settings.respectSilentMode }, set: { _ in store.toggleRespectSilentMode() })
+    }
+    #endif
 
     private var rowDivider: some View {
         Rectangle()

@@ -4,11 +4,12 @@ struct TimerSettings: Codable, Equatable {
     var autoStartNext = true
     var soundOn = true
     var hapticsOn = true
+    var respectSilentMode = true
 }
 
 extension TimerSettings {
     private enum CodingKeys: String, CodingKey {
-        case durations, preset, autoStartNext, soundOn, hapticsOn
+        case durations, preset, autoStartNext, soundOn, hapticsOn, respectSilentMode
     }
 
     init(from decoder: Decoder) throws {
@@ -18,5 +19,6 @@ extension TimerSettings {
         autoStartNext = try container.decodeIfPresent(Bool.self, forKey: .autoStartNext) ?? true
         soundOn = try container.decodeIfPresent(Bool.self, forKey: .soundOn) ?? true
         hapticsOn = try container.decodeIfPresent(Bool.self, forKey: .hapticsOn) ?? true
+        respectSilentMode = try container.decodeIfPresent(Bool.self, forKey: .respectSilentMode) ?? true
     }
 }

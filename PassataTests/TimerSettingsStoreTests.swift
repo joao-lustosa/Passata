@@ -3,6 +3,18 @@ import XCTest
 
 @MainActor
 final class TimerSettingsStoreTests: XCTestCase {
+    func testRespectSilentModeDefaultsOnAndPersistsItsToggle() {
+        let persister = SettingsSpy()
+        let store = TimerSettingsStore(persister: persister)
+
+        XCTAssertTrue(store.settings.respectSilentMode)
+        store.toggleRespectSilentMode()
+
+        XCTAssertFalse(store.settings.respectSilentMode)
+        XCTAssertEqual(persister.stored?.respectSilentMode, false)
+        XCTAssertEqual(persister.saveCount, 1)
+    }
+
     func testEngineUsesChangedSettingsForResetAndNextPhaseDurations() {
         let persister = SettingsSpy()
         let store = TimerSettingsStore(persister: persister)
@@ -143,12 +155,16 @@ final class TimerSettingsStoreTests: XCTestCase {
         store.toggleAutoStart()
         expected.autoStartNext = false
         XCTAssertEqual(persister.stored, expected)
+        store.toggleRespectSilentMode()
+        expected.respectSilentMode = false
+        XCTAssertEqual(persister.stored, expected)
 
         XCTAssertFalse(store.settings.soundOn)
         XCTAssertFalse(store.settings.hapticsOn)
         XCTAssertFalse(store.settings.autoStartNext)
         XCTAssertFalse(engine.autoStartNext)
-        XCTAssertEqual(persister.saveCount, 3)
+        XCTAssertFalse(store.settings.respectSilentMode)
+        XCTAssertEqual(persister.saveCount, 4)
     }
 
     private func makeStore(engine: TimerEngine? = nil) -> TimerSettingsStore {

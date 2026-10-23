@@ -13,13 +13,12 @@ import Observation
         }
     }
     private(set) var sessionIndex: Int
-    nonisolated static let sessionsPerCycle = 4
-    var sessionsPerCycle: Int { Self.sessionsPerCycle }
+    var sessionsPerCycle: Int { durationProvider.sessionsPerCycle }
     // Stored so the macOS no-window timer loop triggers observation updates.
     private(set) var remainingSeconds: Int
     var autoStartNext = true
     var onPhaseCompleted: (() -> Void)?
-    enum TransitionKind { case started, resumed, paused, completed, skipped, startedNext, reset, reconciled }
+    enum TransitionKind { case started, resumed, paused, completed, skipped, startedNext, reset, reconciled, reanchored }
     var onStateChange: ((_ phase: Phase, _ sessionIndex: Int, _ render: RenderState, _ kind: TransitionKind) -> Void)?
 
     @ObservationIgnored
@@ -49,7 +48,17 @@ import Observation
 
         if let snapshot = persister.load() {
             phase = snapshot.phase
-            state = TimerRunState(status: snapshot.status, endDate: snapshot.endDate, pausedRemaining: snapshot.pausedRemaining)
+            let fallbackDuration = durationProvider.duration(for: snapshot.phase)
+            let timeRemaining: TimeInterval = snapshot.status == .paused
+                ? (snapshot.pausedRemaining ?? 0)
+                : max(0, (snapshot.endDate ?? .distantPast).timeIntervalSince(dateProvider.now))
+            let phaseDuration = snapshot.phaseDuration ?? max(fallbackDuration, Int(timeRemaining.rounded(.up)))
+            state = TimerRunState(
+                status: snapshot.status,
+                endDate: snapshot.endDate,
+                pausedRemaining: snapshot.pausedRemaining,
+                phaseDuration: phaseDuration
+            )
             sessionIndex = snapshot.sessionIndex
             remainingSeconds = 0
             if state == .idle {
@@ -70,22 +79,26 @@ import Observation
 
     func start() {
         guard state == .idle else { return }
-        state = .running(endDate: dateProvider.now.addingTimeInterval(TimeInterval(durationProvider.duration(for: phase))))
+        let phaseDuration = durationProvider.duration(for: phase)
+        state = .running(phaseDuration: phaseDuration,
+                         endDate: dateProvider.now.addingTimeInterval(TimeInterval(phaseDuration)))
         persist()
         emitStateChange(.started)
     }
 
     func resume() {
-        guard case .paused(let remaining) = state else { return }
-        state = .running(endDate: dateProvider.now.addingTimeInterval(remaining))
+        guard case .paused(let phaseDuration, let remaining) = state else { return }
+        state = .running(phaseDuration: phaseDuration,
+                         endDate: dateProvider.now.addingTimeInterval(remaining))
         recomputeRemaining()
         persist()
         emitStateChange(.resumed)
     }
 
     func pause() {
-        guard case .running(let endDate) = state else { return }
-        state = .paused(remaining: max(0, endDate.timeIntervalSince(dateProvider.now)))
+        guard case .running(let phaseDuration, let endDate) = state else { return }
+        state = .paused(phaseDuration: phaseDuration,
+                        remaining: max(0, endDate.timeIntervalSince(dateProvider.now)))
         recomputeRemaining()
         persist()
         emitStateChange(.paused)
@@ -134,9 +147,9 @@ import Observation
 
     func recomputeRemaining() {
         switch state {
-        case .running(let endDate):
+        case .running(_, let endDate):
             remainingSeconds = max(0, Int(ceil(endDate.timeIntervalSince(dateProvider.now))))
-        case .paused(let remaining):
+        case .paused(_, let remaining):
             remainingSeconds = max(0, Int(ceil(remaining)))
         case .idle, .complete:
             break
@@ -145,7 +158,7 @@ import Observation
 
     func checkForCompletion() {
         let now = dateProvider.now
-        guard case .running(let endDate) = state, endDate <= now else { return }
+        guard case .running(_, let endDate) = state, endDate <= now else { return }
 
         guard now.timeIntervalSince(endDate) > completionLatenessTolerance else {
             completeLivePhase()
@@ -168,14 +181,17 @@ import Observation
         var landedPhase = phase
         var landedSessionIndex = sessionIndex
         var boundary = firstBoundary
+        var landedPhaseDuration = 0
 
         while true {
             guard shouldAutomaticallyAdvance(after: landedPhase) else { break }
             let next = landedPhase.next(sessionIndex: landedSessionIndex, sessionsPerCycle: sessionsPerCycle)
-            let nextBoundary = boundary.addingTimeInterval(TimeInterval(durationProvider.duration(for: next.phase)))
+            let nextDuration = durationProvider.duration(for: next.phase)
+            let nextBoundary = boundary.addingTimeInterval(TimeInterval(nextDuration))
             landedPhase = next.phase
             landedSessionIndex = next.sessionIndex
             boundary = nextBoundary
+            landedPhaseDuration = nextDuration
             if nextBoundary > now {
                 break
             }
@@ -184,7 +200,7 @@ import Observation
         phase = landedPhase
         sessionIndex = landedSessionIndex
         if autoStartNext, boundary > now {
-            state = .running(endDate: boundary)
+            state = .running(phaseDuration: landedPhaseDuration, endDate: boundary)
             remainingSeconds = max(0, Int(ceil(boundary.timeIntervalSince(now))))
         } else {
             state = .complete
@@ -198,7 +214,7 @@ import Observation
     }
 
     var upcomingBoundaries: [PhaseBoundary] {
-        guard case .running(let firstBoundary) = state else { return [] }
+        guard case .running(_, let firstBoundary) = state else { return [] }
 
         var boundaries: [PhaseBoundary] = []
         var nextPhase = phase
@@ -222,13 +238,46 @@ import Observation
         remainingSeconds = seconds
     }
 
+    var currentPhaseDuration: Int {
+        switch state {
+        case .running(let phaseDuration, _), .paused(let phaseDuration, _): phaseDuration
+        case .idle, .complete: durationProvider.duration(for: phase)
+        }
+    }
+
+    func restartCurrentPhase() {
+        guard status == .running || status == .paused else { return }
+        autoAdvanceTask?.cancel()
+        let phaseDuration = durationProvider.duration(for: phase)
+        remainingSeconds = phaseDuration
+        switch state {
+        case .running:
+            state = .running(phaseDuration: phaseDuration,
+                             endDate: dateProvider.now.addingTimeInterval(TimeInterval(phaseDuration)))
+        case .paused:
+            state = .paused(phaseDuration: phaseDuration, remaining: TimeInterval(phaseDuration))
+        case .idle, .complete:
+            return
+        }
+        persist()
+        emitStateChange(.reanchored)
+    }
+
+    func reanchorSchedule() {
+        guard status == .running || status == .paused else { return }
+        emitStateChange(.reanchored)
+    }
+
     private func transitionToNextPhase(autoStart: Bool) {
         let next = phase.next(sessionIndex: sessionIndex, sessionsPerCycle: sessionsPerCycle)
         phase = next.phase
         sessionIndex = next.sessionIndex
         let fullDuration = durationProvider.duration(for: phase)
         remainingSeconds = fullDuration
-        state = autoStart ? .running(endDate: dateProvider.now.addingTimeInterval(TimeInterval(fullDuration))) : .idle
+        state = autoStart
+            ? .running(phaseDuration: fullDuration,
+                       endDate: dateProvider.now.addingTimeInterval(TimeInterval(fullDuration)))
+            : .idle
         persist()
     }
 
@@ -238,15 +287,15 @@ import Observation
 
     var currentRenderState: RenderState {
         switch state {
-        case .running(let phaseEnd):
-            let phaseStart = phaseEnd.addingTimeInterval(-TimeInterval(durationProvider.duration(for: phase)))
+        case .running(let phaseDuration, let phaseEnd):
+            let phaseStart = phaseEnd.addingTimeInterval(-TimeInterval(phaseDuration))
             return .running(phaseStart: phaseStart, phaseEnd: phaseEnd)
         case .idle:
             return .idle(phaseDurationSeconds: durationProvider.duration(for: phase))
-        case .paused(let remaining):
+        case .paused(let phaseDuration, let remaining):
             return .paused(
                 remainingSeconds: Int(ceil(remaining)),
-                phaseDurationSeconds: durationProvider.duration(for: phase)
+                phaseDurationSeconds: phaseDuration
             )
         case .complete:
             return .complete
@@ -269,7 +318,14 @@ import Observation
     }
 
     private func persist() {
-        let (status, endDate, pausedRemaining) = state.snapshotFields
-        persister.save(TimerSnapshot(phase: phase, status: status, sessionIndex: sessionIndex, endDate: endDate, pausedRemaining: pausedRemaining))
+        let (status, endDate, pausedRemaining, phaseDuration) = state.snapshotFields
+        persister.save(TimerSnapshot(
+            phase: phase,
+            status: status,
+            sessionIndex: sessionIndex,
+            endDate: endDate,
+            pausedRemaining: pausedRemaining,
+            phaseDuration: phaseDuration
+        ))
     }
 }

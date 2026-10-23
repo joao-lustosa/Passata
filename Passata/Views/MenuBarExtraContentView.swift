@@ -28,7 +28,7 @@ struct MenuBarExtraContentView: View {
     private var accent: Color { PassataPalette.accent(for: engine.phase) }
 
     private var progress: Double {
-        let duration = store.duration(for: engine.phase)
+        let duration = engine.currentPhaseDuration
         guard duration > 0 else { return 0 }
         return min(1, max(0, 1 - Double(engine.remainingSeconds) / Double(duration)))
     }

@@ -48,7 +48,7 @@ actor LiveActivityController {
         switch event.kind {
         case .started, .startedNext:
             await reconcileActiveActivity(content, staleDate: staleDate, status: .running)
-        case .resumed, .paused:
+        case .resumed, .paused, .reanchored:
             await publisher.update(content, staleDate: staleDate)
         case .completed where !event.autoStartNext, .skipped, .reset:
             await publisher.endImmediately(content)

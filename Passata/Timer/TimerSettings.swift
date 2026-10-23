@@ -1,6 +1,6 @@
 struct TimerSettings: Codable, Equatable {
     var durations = PhaseDurations.classic
-    var preset: Preset = .classic
+    var sessionsPerCycle = Self.classicSessionsPerCycle
     var autoStartNext = true
     var soundOn = true
     var hapticsOn = true
@@ -8,14 +8,19 @@ struct TimerSettings: Codable, Equatable {
 }
 
 extension TimerSettings {
+    nonisolated static let classicSessionsPerCycle = 4
+
     private enum CodingKeys: String, CodingKey {
-        case durations, preset, autoStartNext, soundOn, hapticsOn, respectSilentMode
+        case durations, sessionsPerCycle, autoStartNext, soundOn, hapticsOn, respectSilentMode
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         durations = try container.decodeIfPresent(PhaseDurations.self, forKey: .durations) ?? .classic
-        preset = try container.decodeIfPresent(Preset.self, forKey: .preset) ?? .classic
+        sessionsPerCycle = PhaseDurations.clamp(
+            try container.decodeIfPresent(Int.self, forKey: .sessionsPerCycle) ?? Self.classicSessionsPerCycle,
+            to: DurationBounds.sessionsPerCycle
+        )
         autoStartNext = try container.decodeIfPresent(Bool.self, forKey: .autoStartNext) ?? true
         soundOn = try container.decodeIfPresent(Bool.self, forKey: .soundOn) ?? true
         hapticsOn = try container.decodeIfPresent(Bool.self, forKey: .hapticsOn) ?? true

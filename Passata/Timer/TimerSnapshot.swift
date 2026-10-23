@@ -7,4 +7,5 @@ struct TimerSnapshot: Codable {
     var sessionIndex: Int
     var endDate: Date?
     var pausedRemaining: TimeInterval?
+    var phaseDuration: Int? = nil
 }

@@ -37,7 +37,7 @@ actor PhaseCompletionController {
 
     private func handle(_ event: PhaseCompletionEvent) async {
         switch event.stateChange.kind {
-        case .started, .resumed, .startedNext:
+        case .started, .resumed, .startedNext, .reanchored:
             guard case .running = event.stateChange.render else { return }
             await notifier.scheduleChain(event.upcomingBoundaries)
         case .reconciled:

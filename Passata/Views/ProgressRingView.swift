@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ProgressRingView: View {
     let engine: TimerEngine
-    let durationProvider: any DurationProviding
 
     @ScaledMetric(relativeTo: .largeTitle) private var ringDiameter = 250.0
     @ScaledMetric(relativeTo: .largeTitle) private var numeralFontSize = 76.0
@@ -17,7 +16,7 @@ struct ProgressRingView: View {
     private var accent: Color { PassataPalette.accent(for: engine.phase) }
 
     private var progress: Double {
-        let duration = durationProvider.duration(for: engine.phase)
+        let duration = engine.currentPhaseDuration
         guard duration > 0 else { return 0 }
         return min(1, max(0, 1 - Double(engine.remainingSeconds) / Double(duration)))
     }
@@ -114,12 +113,11 @@ struct ProgressRingView: View {
 }
 
 #Preview("Paused focus ring") {
-    let durationProvider = PreviewDurationProvider()
-    let engine = TimerEngine(durationProvider: durationProvider, persister: NoOpTimerStateStore())
+    let engine = TimerEngine(durationProvider: PreviewDurationProvider(), persister: NoOpTimerStateStore())
     engine.start()
     engine.pause()
 
-    return ProgressRingView(engine: engine, durationProvider: durationProvider)
+    return ProgressRingView(engine: engine)
         .padding(28)
         .background(Color("PassataBackground"))
 }

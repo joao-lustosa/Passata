@@ -35,6 +35,7 @@ final class TimerEngineTests: XCTestCase {
     func testManualTransitionsCancelPendingAutoAdvanceEvenIfAnotherPhaseCompletes() async {
         let actions: [(String, (TimerEngine) -> Void, Phase)] = [
             ("reset", { $0.onReset() }, .focus),
+            ("restart cycle", { $0.restartCycle() }, .focus),
             ("skip", { $0.onSkip() }, .shortBreak),
             ("start next", { $0.onStartNext() }, .shortBreak)
         ]
@@ -161,6 +162,69 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(engine.remainingSeconds, 60)
         XCTAssertEqual(engine.phase, .shortBreak)
         XCTAssertEqual(engine.sessionIndex, 1)
+    }
+
+    func testPhaseResetRestoresFullDurationFromRunningAndPausedProgress() {
+        for shouldPause in [false, true] {
+            let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+            let store = RecordingTimerStateStore()
+            var resetWasEmitted = false
+            let engine = TimerEngine(
+                durationProvider: TestDurationProvider(),
+                dateProvider: clock,
+                persister: store,
+                autoStartNext: false,
+                onStateChange: { _, _, _, kind in
+                    if case .reset = kind { resetWasEmitted = true }
+                }
+            )
+
+            engine.onSkip()
+            engine.start()
+            clock.now = clock.now.addingTimeInterval(20)
+            engine.recomputeRemaining()
+            XCTAssertEqual(engine.remainingSeconds, 40)
+            if shouldPause { engine.pause() }
+
+            engine.onReset()
+
+            XCTAssertEqual(engine.phase, .shortBreak)
+            XCTAssertEqual(engine.sessionIndex, 1)
+            XCTAssertEqual(engine.status, .idle)
+            XCTAssertEqual(engine.remainingSeconds, 60)
+            XCTAssertEqual(store.latest?.phase, .shortBreak)
+            XCTAssertEqual(store.latest?.status, .idle)
+            XCTAssertNil(store.latest?.endDate)
+            XCTAssertTrue(resetWasEmitted)
+        }
+    }
+
+    func testRestartCycleReturnsEveryPhaseAndSessionToStoppedFocusOneAndPersists() {
+        for phase in Phase.allCases {
+            for sessionIndex in 1...TimerEngine.sessionsPerCycle {
+                let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+                let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
+                    phase: phase,
+                    status: .paused,
+                    sessionIndex: sessionIndex,
+                    endDate: nil,
+                    pausedRemaining: 37
+                ))
+                let engine = makeEngine(clock: clock, store: store, autoStartNext: false)
+
+                engine.restartCycle()
+
+                XCTAssertEqual(engine.phase, .focus, "From \(phase), session \(sessionIndex)")
+                XCTAssertEqual(engine.sessionIndex, 1, "From \(phase), session \(sessionIndex)")
+                XCTAssertEqual(engine.status, .idle, "From \(phase), session \(sessionIndex)")
+                XCTAssertEqual(engine.remainingSeconds, 120, "From \(phase), session \(sessionIndex)")
+                XCTAssertEqual(store.latest?.phase, .focus)
+                XCTAssertEqual(store.latest?.sessionIndex, 1)
+                XCTAssertEqual(store.latest?.status, .idle)
+                XCTAssertNil(store.latest?.endDate)
+                XCTAssertNil(store.latest?.pausedRemaining)
+            }
+        }
     }
 
     func testCompletionIsDetectedWithoutSleeping() {

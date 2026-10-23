@@ -3,6 +3,8 @@ import SwiftUI
 struct ControlsBarView: View {
     let engine: TimerEngine
 
+    @State private var isShowingRestartCycleConfirmation = false
+
     @Namespace private var glassNamespace
 
     @ScaledMetric(relativeTo: .body) private var primaryHorizontalPadding = 36.0
@@ -13,12 +15,11 @@ struct ControlsBarView: View {
     private var accentDeep: Color { PassataPalette.accentDeep(for: engine.phase) }
 
     private var primaryLabel: String {
-        switch engine.status {
-        case .idle: "Start"
-        case .running: "Pause"
-        case .paused: "Resume"
-        case .complete: ""
-        }
+        ResetControlRule.primaryLabel(for: engine.status)
+    }
+
+    private var resetAction: ResetControlAction {
+        ResetControlRule.action(for: engine.phase, sessionIndex: engine.sessionIndex, status: engine.status)
     }
 
     private var primaryIcon: String {
@@ -34,19 +35,27 @@ struct ControlsBarView: View {
                     .padding(.vertical, primaryVerticalPadding)
                     .padding(.horizontal, primaryHorizontalPadding)
             }
+                    .disabled(engine.status == .complete)
+                    .opacity(engine.status == .complete ? 0.35 : 1)
             .buttonStyle(.plain)
             .passataMacHoverFeedback()
             .glassEffect(.regular.tint(accentDeep), in: .capsule)
 
             GlassEffectContainer(spacing: 0) {
                 HStack(spacing: 0) {
-                    Button(action: engine.onReset) {
+                    Button(action: performReset) {
                         Label("Reset", systemImage: "arrow.counterclockwise")
                             .frame(minHeight: 46)
                             .padding(.horizontal, 22)
                     }
-                    .disabled(engine.status == .idle)
-                    .opacity(engine.status == .idle ? 0.35 : 1)
+                    .disabled(resetAction == .disabled)
+                    .opacity(resetAction == .disabled ? 0.35 : 1)
+                    .accessibilityLabel("Reset")
+                    .accessibilityHint(ResetControlRule.accessibilityHint(for: resetAction))
+                    .accessibilityAction(named: Text("Restart Cycle"), requestRestartCycle)
+                    .contextMenu {
+                        Button("Restart Cycle", systemImage: "arrow.counterclockwise", action: requestRestartCycle)
+                    }
                     .passataMacHoverFeedback()
                     .glassEffect(.regular, in: .capsule)
                     .glassEffectUnion(id: "resetSkipGroup", namespace: glassNamespace)
@@ -60,6 +69,8 @@ struct ControlsBarView: View {
                             .frame(minHeight: 46)
                             .padding(.horizontal, 22)
                     }
+                    .disabled(engine.status == .complete)
+                    .opacity(engine.status == .complete ? 0.35 : 1)
                     .passataMacHoverFeedback()
                     .glassEffect(.regular, in: .capsule)
                     .glassEffectUnion(id: "resetSkipGroup", namespace: glassNamespace)
@@ -69,9 +80,25 @@ struct ControlsBarView: View {
                 .buttonStyle(.plain)
             }
         }
-        .disabled(engine.status == .complete)
-        .opacity(engine.status == .complete ? 0.25 : 1)
         .padding(.top, 4)
         .padding(.bottom, 30)
+        .alert("Restart cycle?", isPresented: $isShowingRestartCycleConfirmation) {
+            Button("Restart Cycle", role: .destructive) { engine.restartCycle() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your progress in this cycle will be lost.")
+        }
+    }
+
+    private func performReset() {
+        resetAction.perform(on: engine)
+    }
+
+    private func requestRestartCycle() {
+        if ResetControlRule.requiresRestartCycleConfirmation(for: engine.status) {
+            isShowingRestartCycleConfirmation = true
+        } else {
+            engine.restartCycle()
+        }
     }
 }

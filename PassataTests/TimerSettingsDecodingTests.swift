@@ -14,6 +14,7 @@ func currentTimerSettingsShapeDecodesWithoutChangingValues() throws {
     #expect(settings.autoStartNext == false)
     #expect(settings.soundOn == false)
     #expect(settings.hapticsOn == false)
+    #expect(settings.respectSilentMode)
 }
 
 @Test
@@ -42,7 +43,8 @@ func everyMissingTimerSettingsFieldDefaultsIndependently() throws {
         ("preset", { $0.preset = classic.preset }),
         ("autoStartNext", { $0.autoStartNext = classic.autoStartNext }),
         ("soundOn", { $0.soundOn = classic.soundOn }),
-        ("hapticsOn", { $0.hapticsOn = classic.hapticsOn })
+        ("hapticsOn", { $0.hapticsOn = classic.hapticsOn }),
+        ("respectSilentMode", { $0.respectSilentMode = classic.respectSilentMode })
     ]
     topLevelCases.insert(("durations", { $0.durations = classic.durations }), at: 0)
 

@@ -29,7 +29,11 @@ struct PassataApp: App {
             persister: UserDefaultsTimerStateStore(),
             autoStartNext: store.settings.autoStartNext,
             onPhaseCompleted: { [store] in
-                feedback.play(soundOn: store.settings.soundOn, hapticsOn: store.settings.hapticsOn)
+                feedback.play(
+                    soundOn: store.settings.soundOn,
+                    hapticsOn: store.settings.hapticsOn,
+                    respectSilentMode: store.settings.respectSilentMode
+                )
             }
         )
         store.engine = engine

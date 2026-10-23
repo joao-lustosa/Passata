@@ -57,6 +57,11 @@ import Observation
         persister.save(settings)
     }
 
+    func toggleRespectSilentMode() {
+        settings.respectSilentMode.toggle()
+        persister.save(settings)
+    }
+
     func toggleAutoStart() {
         settings.autoStartNext.toggle()
         engine?.autoStartNext = settings.autoStartNext

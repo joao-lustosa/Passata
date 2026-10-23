@@ -40,6 +40,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		27ADBA813050F9E000497436 /* Passata */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A70B0001305AE00100497436 /* AppInfoPlistExceptionSet */,
+			);
 			path = Passata;
 			sourceTree = "<group>";
 		};
@@ -64,6 +67,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A70B0001305AE00100497436 /* AppInfoPlistExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 27ADBA7E3050F9E000497436 /* Passata */;
+		};
 		27ADB01A3050F9E100497436 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -523,6 +533,8 @@
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xrsimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "AppDelegate.swift MenuBarExtraContentView.swift PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=iphoneos*]" = Passata/Info.plist;
+				"INFOPLIST_FILE[sdk=iphonesimulator*]" = Passata/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -575,6 +587,8 @@
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xrsimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "AppDelegate.swift MenuBarExtraContentView.swift PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=iphoneos*]" = Passata/Info.plist;
+				"INFOPLIST_FILE[sdk=iphonesimulator*]" = Passata/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

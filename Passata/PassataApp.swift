@@ -22,22 +22,6 @@ struct PassataApp: App {
         #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
         let liveActivityController = LiveActivityController(publisher: SystemLiveActivityPublisher())
         let phaseCompletionController = PhaseCompletionController(notifier: SystemPhaseCompletionNotifier())
-        let onStateChange: ((_ phase: Phase, _ sessionIndex: Int, _ render: RenderState, _ kind: TimerEngine.TransitionKind) -> Void)? = { phase, sessionIndex, render, kind in
-            liveActivityController.submit(
-                phase: phase,
-                sessionIndex: sessionIndex,
-                render: render,
-                kind: kind
-            )
-            phaseCompletionController.submit(
-                phase: phase,
-                sessionIndex: sessionIndex,
-                render: render,
-                kind: kind
-            )
-        }
-        #else
-        let onStateChange: ((_ phase: Phase, _ sessionIndex: Int, _ render: RenderState, _ kind: TimerEngine.TransitionKind) -> Void)? = nil
         #endif
         let engine = TimerEngine(
             durationProvider: store,
@@ -46,10 +30,71 @@ struct PassataApp: App {
             autoStartNext: store.settings.autoStartNext,
             onPhaseCompleted: { [store] in
                 feedback.play(soundOn: store.settings.soundOn, hapticsOn: store.settings.hapticsOn)
-            },
-            onStateChange: onStateChange
+            }
         )
         store.engine = engine
+
+        #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
+        engine.onStateChange = { [weak engine] phase, sessionIndex, render, kind in
+            guard let engine else { return }
+            liveActivityController.submit(
+                phase: phase,
+                sessionIndex: sessionIndex,
+                sessionsPerCycle: engine.sessionsPerCycle,
+                render: render,
+                kind: kind,
+                autoStartNext: engine.autoStartNext
+            )
+            let upcomingBoundaries = engine.status == .running ? engine.upcomingBoundaries : []
+            phaseCompletionController.submit(
+                phase: phase,
+                sessionIndex: sessionIndex,
+                sessionsPerCycle: engine.sessionsPerCycle,
+                render: render,
+                kind: kind,
+                autoStartNext: engine.autoStartNext,
+                upcomingBoundaries: upcomingBoundaries
+            )
+            #if os(iOS)
+            BackgroundRefreshScheduler.schedule(for: engine)
+            #endif
+        }
+
+        switch engine.status {
+        case .running:
+            phaseCompletionController.submit(
+                phase: engine.phase,
+                sessionIndex: engine.sessionIndex,
+                sessionsPerCycle: engine.sessionsPerCycle,
+                render: engine.currentRenderState,
+                kind: .started,
+                autoStartNext: engine.autoStartNext,
+                upcomingBoundaries: engine.upcomingBoundaries
+            )
+        case .idle, .paused:
+            phaseCompletionController.submit(
+                phase: engine.phase,
+                sessionIndex: engine.sessionIndex,
+                sessionsPerCycle: engine.sessionsPerCycle,
+                render: engine.currentRenderState,
+                kind: .reset,
+                autoStartNext: engine.autoStartNext,
+                upcomingBoundaries: []
+            )
+        case .complete where !engine.autoStartNext:
+            phaseCompletionController.submit(
+                phase: engine.phase,
+                sessionIndex: engine.sessionIndex,
+                sessionsPerCycle: engine.sessionsPerCycle,
+                render: engine.currentRenderState,
+                kind: .reset,
+                autoStartNext: false,
+                upcomingBoundaries: []
+            )
+        case .complete:
+            break
+        }
+        #endif
 
         #if os(macOS)
         // Keep completion and feedback running even when every window and popover is closed.
@@ -72,6 +117,7 @@ struct PassataApp: App {
             await liveActivityController.reconcileOnLaunch(
                 phase: engine.phase,
                 sessionIndex: engine.sessionIndex,
+                sessionsPerCycle: engine.sessionsPerCycle,
                 status: engine.status,
                 render: engine.currentRenderState
             )
@@ -107,7 +153,17 @@ struct PassataApp: App {
         #else
         WindowGroup(id: "main") {
             timerScreenContent
+                .task {
+                    // The scene's backgroundTask modifier registers the launch handler after App.init.
+                    // Submit only once the scene content starts, after that registration is in place.
+                    BackgroundRefreshScheduler.schedule(for: engine)
+                }
         }
+        #if os(iOS)
+        .backgroundTask(.appRefresh(BackgroundRefreshScheduler.identifier)) {
+            await MainActor.run { BackgroundRefreshScheduler.reconcile(engine) }
+        }
+        #endif
         #endif
     }
 }

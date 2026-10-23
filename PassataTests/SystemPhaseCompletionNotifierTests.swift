@@ -12,12 +12,12 @@ final class SystemPhaseCompletionNotifierTests: XCTestCase {
         center.status = .notDetermined
         let notifier = SystemPhaseCompletionNotifier(center: center)
 
-        await notifier.schedule(at: deadline, phase: .focus)
+        await schedule(notifier, at: deadline, phase: .focus)
 
         XCTAssertEqual(center.requestAuthorizationCallCount, 1)
         XCTAssertEqual(center.addedRequests.count, 1)
         let request = try XCTUnwrap(center.addedRequests.first)
-        XCTAssertEqual(request.identifier, "phase-completion")
+        XCTAssertEqual(request.identifier, "phase-completion-0")
         XCTAssertEqual(request.content.title, "Focus session complete")
         XCTAssertEqual(request.content.body, "Time for a break.")
         XCTAssertNotNil(request.content.sound)
@@ -32,7 +32,7 @@ final class SystemPhaseCompletionNotifierTests: XCTestCase {
         center.status = .notDetermined
         center.requestAuthorizationResult = .success(false)
 
-        await SystemPhaseCompletionNotifier(center: center).schedule(at: deadline, phase: .focus)
+        await schedule(SystemPhaseCompletionNotifier(center: center), at: deadline, phase: .focus)
 
         XCTAssertEqual(center.requestAuthorizationCallCount, 1)
         XCTAssertTrue(center.addedRequests.isEmpty)
@@ -43,7 +43,7 @@ final class SystemPhaseCompletionNotifierTests: XCTestCase {
         center.status = .notDetermined
         center.requestAuthorizationResult = .failure(TestError.unavailable)
 
-        await SystemPhaseCompletionNotifier(center: center).schedule(at: deadline, phase: .focus)
+        await schedule(SystemPhaseCompletionNotifier(center: center), at: deadline, phase: .focus)
 
         XCTAssertEqual(center.requestAuthorizationCallCount, 1)
         XCTAssertTrue(center.addedRequests.isEmpty)
@@ -53,7 +53,7 @@ final class SystemPhaseCompletionNotifierTests: XCTestCase {
         let center = FakeUserNotificationScheduling()
         center.status = .denied
 
-        await SystemPhaseCompletionNotifier(center: center).schedule(at: deadline, phase: .focus)
+        await schedule(SystemPhaseCompletionNotifier(center: center), at: deadline, phase: .focus)
 
         XCTAssertEqual(center.requestAuthorizationCallCount, 0)
         XCTAssertTrue(center.addedRequests.isEmpty)
@@ -62,12 +62,12 @@ final class SystemPhaseCompletionNotifierTests: XCTestCase {
     func testAuthorizedSchedulesBreakWithoutRequestingPermission() async throws {
         let center = FakeUserNotificationScheduling()
 
-        await SystemPhaseCompletionNotifier(center: center).schedule(at: deadline, phase: .shortBreak)
+        await schedule(SystemPhaseCompletionNotifier(center: center), at: deadline, phase: .shortBreak)
 
         XCTAssertEqual(center.requestAuthorizationCallCount, 0)
         XCTAssertEqual(center.addedRequests.count, 1)
         let request = try XCTUnwrap(center.addedRequests.first)
-        XCTAssertEqual(request.identifier, "phase-completion")
+        XCTAssertEqual(request.identifier, "phase-completion-0")
         XCTAssertEqual(request.content.title, "Break complete")
         XCTAssertEqual(request.content.body, "Ready for your next focus session.")
     }
@@ -77,11 +77,11 @@ final class SystemPhaseCompletionNotifierTests: XCTestCase {
         center.addResult = .failure(TestError.unavailable)
         let notifier = SystemPhaseCompletionNotifier(center: center)
 
-        await notifier.schedule(at: deadline, phase: .focus)
+        await schedule(notifier, at: deadline, phase: .focus)
         XCTAssertEqual(center.addedRequests.count, 1)
-        XCTAssertEqual(center.addedRequests.first?.identifier, "phase-completion")
+        XCTAssertEqual(center.addedRequests.first?.identifier, "phase-completion-0")
         center.addResult = .success(())
-        await notifier.schedule(at: deadline.addingTimeInterval(60), phase: .longBreak)
+        await schedule(notifier, at: deadline.addingTimeInterval(60), phase: .longBreak)
         XCTAssertEqual(center.addedRequests.count, 2)
         XCTAssertEqual(center.addedRequests.last?.content.title, "Break complete")
         XCTAssertEqual(center.requestAuthorizationCallCount, 0)
@@ -92,9 +92,39 @@ final class SystemPhaseCompletionNotifierTests: XCTestCase {
 
         await SystemPhaseCompletionNotifier(center: center).cancelPending()
 
-        XCTAssertEqual(center.removedIdentifiers, [["phase-completion"]])
+        XCTAssertEqual(center.removedIdentifiers, [(0..<16).map { "phase-completion-\($0)" }])
         XCTAssertEqual(center.requestAuthorizationCallCount, 0)
         XCTAssertTrue(center.addedRequests.isEmpty)
+    }
+
+    func testSchedulesAnOrderedChainUsingAtMostSixteenStableIdentifiers() async throws {
+        let center = FakeUserNotificationScheduling()
+        let notifier = SystemPhaseCompletionNotifier(center: center)
+        let boundaries = (0..<18).map { index in
+            PhaseBoundary(
+                phase: index.isMultiple(of: 2) ? .focus : .shortBreak,
+                sessionIndex: 1,
+                phaseEnd: deadline.addingTimeInterval(TimeInterval(index * 60))
+            )
+        }
+
+        await notifier.scheduleChain(boundaries)
+
+        XCTAssertEqual(center.addedRequests.count, 16)
+        XCTAssertEqual(center.addedRequests.map(\.identifier), (0..<16).map { "phase-completion-\($0)" })
+        let firstTrigger = try XCTUnwrap(center.addedRequests.first?.trigger as? UNCalendarNotificationTrigger)
+        let secondTrigger = try XCTUnwrap(center.addedRequests[1].trigger as? UNCalendarNotificationTrigger)
+        XCTAssertEqual(firstTrigger.dateComponents, Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second], from: deadline))
+        XCTAssertEqual(secondTrigger.dateComponents, Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second], from: deadline.addingTimeInterval(60)))
+        XCTAssertEqual(center.addedRequests.map(\.content.title), Array(0..<16).map {
+            $0.isMultiple(of: 2) ? "Focus session complete" : "Break complete"
+        })
+    }
+
+    private func schedule(_ notifier: SystemPhaseCompletionNotifier, at deadline: Date, phase: Phase) async {
+        await notifier.scheduleChain([PhaseBoundary(phase: phase, sessionIndex: 1, phaseEnd: deadline)])
     }
 
     private enum TestError: Error { case unavailable }

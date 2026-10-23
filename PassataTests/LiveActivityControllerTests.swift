@@ -8,7 +8,7 @@ import XCTest
 #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
 @MainActor
 final class LiveActivityControllerTests: XCTestCase {
-    func testSkipThenStartUpdatesExistingActivityWithRunningDates() async {
+    func testSkipEndsActivityAndStartRequestsANewOne() async {
         let publisher = RecordingLiveActivityPublisher()
         let controller = LiveActivityController(publisher: publisher)
         let clock = LiveActivityTestClock()
@@ -38,21 +38,21 @@ final class LiveActivityControllerTests: XCTestCase {
         let running = RenderState.running(phaseStart: focusStart, phaseEnd: focusEnd)
         XCTAssertEqual(engine.sessionIndex, 2)
         XCTAssertEqual(engine.currentRenderState, running)
-        XCTAssertEqual(publisher.snapshot().requestCount, 1, "Start must reuse the activity displaying the skipped phase.")
+        XCTAssertEqual(publisher.snapshot().requestCount, 2, "Start after Skip must request a fresh activity.")
         XCTAssertEqual(publisher.snapshot().publications[1], .init(
-            action: "update",
+            action: "end",
             content: .init(phase: .shortBreak, sessionIndex: 1, sessionsPerCycle: 4,
                            render: .idle(phaseDurationSeconds: 300)),
             staleDate: nil
         ))
         XCTAssertEqual(publisher.snapshot().publications[2], .init(
-            action: "update",
+            action: "end",
             content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4,
                            render: .idle(phaseDurationSeconds: 1500)),
             staleDate: nil
         ))
-        XCTAssertEqual(publisher.snapshot().publications.last, .init(
-            action: "update",
+        XCTAssertEqual(publisher.snapshot().publications[3], .init(
+            action: "request",
             content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4, render: running),
             staleDate: focusEnd
         ))
@@ -93,7 +93,7 @@ final class LiveActivityControllerTests: XCTestCase {
 
         engine.start()
         await waitUntil { publisher.snapshot().publications.count == 8 }
-        XCTAssertEqual(publisher.snapshot().requestCount, 2, "Reset ends the old activity, so the next Start requests a new one.")
+        XCTAssertEqual(publisher.snapshot().requestCount, 3, "Skip and Reset each require a fresh activity on the next Start.")
         XCTAssertEqual(publisher.snapshot().publications.last, .init(
             action: "request",
             content: .init(phase: .focus, sessionIndex: 2, sessionsPerCycle: 4,
@@ -159,20 +159,21 @@ final class LiveActivityControllerTests: XCTestCase {
 
         controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .resumed)
         controller.submit(phase: .focus, sessionIndex: 1, render: paused, kind: .paused)
-        controller.submit(phase: .focus, sessionIndex: 1, render: .complete, kind: .completed)
+        controller.submit(phase: .focus, sessionIndex: 1, render: .complete, kind: .completed, autoStartNext: false)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: .idle(phaseDurationSeconds: 60), kind: .skipped)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: running, kind: .startedNext)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: .idle(phaseDurationSeconds: 60), kind: .reset)
 
         await waitUntil {
             let snapshot = publisher.snapshot()
-            return snapshot.updateCount == 5 && snapshot.endCount == 1
+            return snapshot.requestCount == 2 && snapshot.updateCount == 2 && snapshot.endCount == 3
         }
-        XCTAssertEqual(publisher.snapshot().updateCount, 5)
-        XCTAssertEqual(publisher.snapshot().endCount, 1)
+        XCTAssertEqual(publisher.snapshot().requestCount, 2)
+        XCTAssertEqual(publisher.snapshot().updateCount, 2)
+        XCTAssertEqual(publisher.snapshot().endCount, 3)
         XCTAssertEqual(
             publisher.snapshot().actions,
-            ["request", "update", "update", "update", "update", "update", "end"]
+            ["request", "update", "update", "end", "end", "request", "end"]
         )
         let focusRunning = PassataActivityAttributes.ContentState(
             phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: running)
@@ -183,9 +184,9 @@ final class LiveActivityControllerTests: XCTestCase {
             .init(action: "request", content: focusRunning, staleDate: deadline),
             .init(action: "update", content: focusRunning, staleDate: deadline),
             .init(action: "update", content: .init(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: paused), staleDate: nil),
-            .init(action: "update", content: .init(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: .complete), staleDate: nil),
-            .init(action: "update", content: shortIdle, staleDate: nil),
-            .init(action: "update", content: .init(phase: .shortBreak, sessionIndex: 1, sessionsPerCycle: 4, render: running), staleDate: deadline),
+            .init(action: "end", content: .init(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: .complete), staleDate: nil),
+            .init(action: "end", content: shortIdle, staleDate: nil),
+            .init(action: "request", content: .init(phase: .shortBreak, sessionIndex: 1, sessionsPerCycle: 4, render: running), staleDate: deadline),
             .init(action: "end", content: shortIdle, staleDate: nil)
         ])
     }
@@ -241,6 +242,35 @@ final class LiveActivityControllerTests: XCTestCase {
 
 }
 
+private extension LiveActivityController {
+    nonisolated func submit(
+        phase: Phase,
+        sessionIndex: Int,
+        render: RenderState,
+        kind: TimerEngine.TransitionKind,
+        autoStartNext: Bool = true
+    ) {
+        submit(
+            phase: phase,
+            sessionIndex: sessionIndex,
+            sessionsPerCycle: TimerEngine.sessionsPerCycle,
+            render: render,
+            kind: kind,
+            autoStartNext: autoStartNext
+        )
+    }
+
+    func reconcileOnLaunch(phase: Phase, sessionIndex: Int, status: RunStatus, render: RenderState) async {
+        await reconcileOnLaunch(
+            phase: phase,
+            sessionIndex: sessionIndex,
+            sessionsPerCycle: TimerEngine.sessionsPerCycle,
+            status: status,
+            render: render
+        )
+    }
+}
+
 #endif
 
 @MainActor
@@ -254,7 +284,8 @@ final class PhaseCompletionControllerTests: XCTestCase {
         let idle = RenderState.idle(phaseDurationSeconds: 120)
         let transitions: [(TimerEngine.TransitionKind, RenderState)] = [
             (.started, running), (.paused, paused), (.resumed, running),
-            (.reset, idle), (.startedNext, running), (.skipped, idle), (.completed, .complete)
+            (.reset, idle), (.startedNext, running), (.skipped, idle), (.completed, .complete),
+            (.reconciled, running), (.reconciled, .complete)
         ]
         for (kind, render) in transitions {
             controller.submit(phase: .focus, sessionIndex: 1, render: render, kind: kind)
@@ -273,7 +304,8 @@ final class PhaseCompletionControllerTests: XCTestCase {
         XCTAssertEqual(notifier.snapshot().actions, [
             .schedule(phase: .focus, deadline: deadline), .cancel,
             .schedule(phase: .focus, deadline: deadline), .cancel,
-            .schedule(phase: .focus, deadline: deadline), .cancel, .cancel,
+            .schedule(phase: .focus, deadline: deadline), .cancel,
+            .schedule(phase: .focus, deadline: deadline), .cancel,
             .schedule(phase: .shortBreak, deadline: finalDeadline)
         ])
     }
@@ -292,20 +324,47 @@ final class PhaseCompletionControllerTests: XCTestCase {
         controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .started)
         controller.submit(phase: .focus, sessionIndex: 1, render: resumed, kind: .resumed)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: running, kind: .startedNext)
-        await waitUntil { notifier.snapshot().scheduleCount == 3 }
-        XCTAssertEqual(notifier.snapshot().scheduledPhases, [.focus, .focus, .shortBreak])
-        XCTAssertEqual(notifier.snapshot().scheduledDeadlines, [220, 280, 220].map {
+        controller.submit(phase: .focus, sessionIndex: 1, render: resumed, kind: .reconciled)
+        await waitUntil { notifier.snapshot().scheduleCount == 4 }
+        XCTAssertEqual(notifier.snapshot().scheduledPhases, [.focus, .focus, .shortBreak, .focus])
+        XCTAssertEqual(notifier.snapshot().scheduledDeadlines, [220, 280, 220, 280].map {
             Date(timeIntervalSinceReferenceDate: $0)
         })
 
         controller.submit(phase: .focus, sessionIndex: 1, render: staticRender, kind: .paused)
         controller.submit(phase: .focus, sessionIndex: 1, render: staticRender, kind: .reset)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: .idle(phaseDurationSeconds: 60), kind: .skipped)
-        controller.submit(phase: .shortBreak, sessionIndex: 1, render: .complete, kind: .completed)
+        controller.submit(phase: .shortBreak, sessionIndex: 1, render: .complete, kind: .completed, autoStartNext: false)
         await waitUntil { notifier.snapshot().cancelCount == 4 }
         XCTAssertEqual(notifier.snapshot().cancelCount, 4)
     }
 
+}
+
+private extension PhaseCompletionController {
+    nonisolated func submit(
+        phase: Phase,
+        sessionIndex: Int,
+        render: RenderState,
+        kind: TimerEngine.TransitionKind,
+        autoStartNext: Bool = true
+    ) {
+        let boundaries: [PhaseBoundary]
+        if case .running(_, let phaseEnd) = render {
+            boundaries = [PhaseBoundary(phase: phase, sessionIndex: sessionIndex, phaseEnd: phaseEnd)]
+        } else {
+            boundaries = []
+        }
+        submit(
+            phase: phase,
+            sessionIndex: sessionIndex,
+            sessionsPerCycle: TimerEngine.sessionsPerCycle,
+            render: render,
+            kind: kind,
+            autoStartNext: autoStartNext,
+            upcomingBoundaries: boundaries
+        )
+    }
 }
 
 @MainActor
@@ -443,12 +502,14 @@ nonisolated private final class RecordingPhaseCompletionNotifier: PhaseCompletio
         }
     }
 
-    func schedule(at phaseEnd: Date, phase: Phase) async {
+    func scheduleChain(_ boundaries: [PhaseBoundary]) async {
         lock.withLock {
-            scheduleCount += 1
-            scheduledPhases.append(phase)
-            scheduledDeadlines.append(phaseEnd)
-            actions.append(.schedule(phase: phase, deadline: phaseEnd))
+            for boundary in boundaries {
+                scheduleCount += 1
+                scheduledPhases.append(boundary.phase)
+                scheduledDeadlines.append(boundary.phaseEnd)
+                actions.append(.schedule(phase: boundary.phase, deadline: boundary.phaseEnd))
+            }
         }
     }
 

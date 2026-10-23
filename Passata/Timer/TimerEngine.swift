@@ -160,7 +160,7 @@ import Observation
         var boundary = firstBoundary
 
         while true {
-            guard autoStartNext, landedPhase != .longBreak || boundary > now else { break }
+            guard shouldAutomaticallyAdvance(after: landedPhase) else { break }
             let next = landedPhase.next(sessionIndex: landedSessionIndex, sessionsPerCycle: sessionsPerCycle)
             let nextBoundary = boundary.addingTimeInterval(TimeInterval(durationProvider.duration(for: next.phase)))
             landedPhase = next.phase
@@ -197,7 +197,7 @@ import Observation
 
         while boundaries.count < 16 {
             boundaries.append(PhaseBoundary(phase: nextPhase, sessionIndex: nextSessionIndex, phaseEnd: boundary))
-            guard autoStartNext else { break }
+            guard shouldAutomaticallyAdvance(after: nextPhase) else { break }
             let next = nextPhase.next(sessionIndex: nextSessionIndex, sessionsPerCycle: sessionsPerCycle)
             boundary = boundary.addingTimeInterval(TimeInterval(durationProvider.duration(for: next.phase)))
             nextPhase = next.phase
@@ -244,7 +244,7 @@ import Observation
     }
 
     private func scheduleAutoAdvanceIfNeeded() {
-        guard autoStartNext, phase != .longBreak else { return }
+        guard shouldAutomaticallyAdvance(after: phase) else { return }
         autoAdvanceTask?.cancel()
         let delay = autoAdvanceDelay
         autoAdvanceTask = Task { [weak self, delay] in
@@ -252,6 +252,10 @@ import Observation
             guard !Task.isCancelled, let self, self.status == .complete else { return }
             self.onStartNext()
         }
+    }
+
+    private func shouldAutomaticallyAdvance(after phase: Phase) -> Bool {
+        autoStartNext && phase != .longBreak
     }
 
     private func persist() {

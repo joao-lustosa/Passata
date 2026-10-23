@@ -631,23 +631,23 @@ final class TimerEngineTests: XCTestCase {
         }
     }
 
-    func testUpcomingBoundariesProduceTheFullCycleOrOnlyCurrentPhase() {
+    func testUpcomingBoundariesStopAfterLongBreakOrWhenAutoStartDisabled() {
         let now = Date(timeIntervalSinceReferenceDate: 1_000)
         let clock = FakeDateProvider(now: now)
         let engine = makeEngine(clock: clock)
         engine.start()
 
-        XCTAssertEqual(Array(engine.upcomingBoundaries.prefix(8)).map(\.phase), [
+        XCTAssertEqual(engine.upcomingBoundaries.map(\.phase), [
             .focus, .shortBreak, .focus, .shortBreak, .focus,
             .shortBreak, .focus, .longBreak
         ])
-        XCTAssertEqual(Array(engine.upcomingBoundaries.prefix(8)).map(\.phaseEnd), [
+        XCTAssertEqual(engine.upcomingBoundaries.map(\.phaseEnd), [
             now.addingTimeInterval(120), now.addingTimeInterval(180),
             now.addingTimeInterval(300), now.addingTimeInterval(360),
             now.addingTimeInterval(480), now.addingTimeInterval(540),
             now.addingTimeInterval(660), now.addingTimeInterval(840)
         ])
-        XCTAssertEqual(engine.upcomingBoundaries.count, 16)
+        XCTAssertEqual(engine.upcomingBoundaries.count, 8)
 
         engine.autoStartNext = false
         XCTAssertEqual(engine.upcomingBoundaries.count, 1)

@@ -23,6 +23,9 @@ struct PassataApp: App {
         let liveActivityController = LiveActivityController(publisher: SystemLiveActivityPublisher())
         let phaseCompletionController = PhaseCompletionController(notifier: SystemPhaseCompletionNotifier())
         let onStateChange: ((_ phase: Phase, _ sessionIndex: Int, _ render: RenderState, _ kind: TimerEngine.TransitionKind) -> Void)? = { phase, sessionIndex, render, kind in
+            #if DEBUG
+            guard !ScheduledLiveActivitySpikeConfiguration.isEnabled else { return }
+            #endif
             liveActivityController.submit(
                 phase: phase,
                 sessionIndex: sessionIndex,
@@ -69,6 +72,9 @@ struct PassataApp: App {
         #if canImport(ActivityKit) && !os(macOS) && !os(visionOS)
         // Benign race with a queued cold-launch .completed event, if any: every interleaving converges to the correct state, worst case one redundant update() call.
         Task {
+            #if DEBUG
+            guard !ScheduledLiveActivitySpikeConfiguration.isEnabled else { return }
+            #endif
             await liveActivityController.reconcileOnLaunch(
                 phase: engine.phase,
                 sessionIndex: engine.sessionIndex,
@@ -106,7 +112,11 @@ struct PassataApp: App {
         .menuBarExtraStyle(.window)
         #else
         WindowGroup(id: "main") {
+            #if DEBUG && os(iOS)
+            ScheduledLiveActivitySpikeView()
+            #else
             timerScreenContent
+            #endif
         }
         #endif
     }

@@ -2,19 +2,21 @@ import Foundation
 import UserNotifications
 
 protocol PhaseCompletionNotifying {
-    nonisolated func schedule(at phaseEnd: Date, phase: Phase) async
+    nonisolated func scheduleChain(_ boundaries: [PhaseBoundary]) async
     nonisolated func cancelPending() async
 }
 
 nonisolated struct SystemPhaseCompletionNotifier: PhaseCompletionNotifying {
-    private let notificationIdentifier = "phase-completion"
+    private let notificationIdentifiers = (0..<16).map { "phase-completion-\($0)" }
     private let center: any UserNotificationScheduling
 
     nonisolated init(center: any UserNotificationScheduling = SystemUserNotificationCenter()) {
         self.center = center
     }
 
-    func schedule(at phaseEnd: Date, phase: Phase) async {
+    func scheduleChain(_ boundaries: [PhaseBoundary]) async {
+        center.removePendingNotificationRequests(withIdentifiers: notificationIdentifiers)
+        guard !boundaries.isEmpty else { return }
         let status = await center.authorizationStatus()
         if status == .notDetermined {
             guard (try? await center.requestAuthorization()) == true else { return }
@@ -22,22 +24,28 @@ nonisolated struct SystemPhaseCompletionNotifier: PhaseCompletionNotifying {
             return
         }
 
-        let content = UNMutableNotificationContent()
-        content.title = title(for: phase)
-        content.body = body(for: phase)
-        content.sound = .default
+        for (index, boundary) in boundaries.prefix(notificationIdentifiers.count).enumerated() {
+            let content = UNMutableNotificationContent()
+            content.title = title(for: boundary.phase)
+            content.body = body(for: boundary.phase)
+            content.sound = .default
 
-        let components = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute, .second],
-            from: phaseEnd
-        )
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        let request = UNNotificationRequest(identifier: notificationIdentifier, content: content, trigger: trigger)
-        try? await center.add(request)
+            let components = Calendar.current.dateComponents(
+                [.year, .month, .day, .hour, .minute, .second],
+                from: boundary.phaseEnd
+            )
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: notificationIdentifiers[index],
+                content: content,
+                trigger: trigger
+            )
+            try? await center.add(request)
+        }
     }
 
     func cancelPending() async {
-        center.removePendingNotificationRequests(withIdentifiers: [notificationIdentifier])
+        center.removePendingNotificationRequests(withIdentifiers: notificationIdentifiers)
     }
 
     private func title(for phase: Phase) -> String {

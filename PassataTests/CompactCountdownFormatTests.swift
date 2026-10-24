@@ -13,16 +13,6 @@ func compactCountdownUsesShortNumericTimerFormat() {
     #expect(String(style.format(phaseStart).characters) == "25:00")
 }
 
-@Test
-@MainActor
-func limitedWidthCountdownUsesShortNumericTime() {
-    let phaseStart = Date(timeIntervalSince1970: 1_000)
-    let phaseEnd = phaseStart.addingTimeInterval(25 * 60)
-    let style = CompactCountdownFormat.timerStyle(countingDownIn: phaseStart..<phaseEnd)
-
-    #expect(String(style.format(phaseStart).characters) == "25:00")
-}
-
 @Test(arguments: [
     (0, "00:00"),
     (65, "01:05"),
@@ -32,4 +22,41 @@ func limitedWidthCountdownUsesShortNumericTime() {
 @MainActor
 func integerClockFormatting(seconds: Int, expected: String) {
     #expect(seconds.asClockString == expected)
+}
+
+@Test(arguments: [
+    (0, "0"),
+    (1, "1"),
+    (59, "1"),
+    (60, "1"),
+    (61, "2"),
+    (-1, "0")
+])
+@MainActor
+func limitedWidthIdleCountdownRoundsUpToWholeMinutes(seconds: Int, expected: String) {
+    let label = CompactCountdownFormat.limitedWidthStaticLabel(for: .idle(phaseDurationSeconds: seconds))
+
+    #expect(label == expected)
+}
+
+@Test(arguments: [
+    (0, "0"),
+    (1, "1"),
+    (59, "1"),
+    (60, "1"),
+    (61, "2"),
+    (-1, "0")
+])
+@MainActor
+func limitedWidthPausedCountdownRoundsUpToWholeMinutes(seconds: Int, expected: String) {
+    let render = RenderState.paused(remainingSeconds: seconds, phaseDurationSeconds: 120)
+    let label = CompactCountdownFormat.limitedWidthStaticLabel(for: render)
+
+    #expect(label == expected)
+}
+
+@Test
+@MainActor
+func limitedWidthCompletedCountdownShowsZero() {
+    #expect(CompactCountdownFormat.limitedWidthStaticLabel(for: .complete) == "0")
 }

@@ -7,7 +7,7 @@ struct LiveActivitySessionDotsView: View {
     let accent: Color
 
     private var filledCount: Int {
-        phase == .focus ? sessionIndex - 1 : sessionIndex
+        phase.filledSessionCount(sessionIndex: sessionIndex)
     }
 
     private var displayedSessionsPerCycle: Int {

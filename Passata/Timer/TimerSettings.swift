@@ -16,14 +16,17 @@ extension TimerSettings {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        durations = try container.decodeIfPresent(PhaseDurations.self, forKey: .durations) ?? .classic
-        sessionsPerCycle = PhaseDurations.clamp(
-            try container.decodeIfPresent(Int.self, forKey: .sessionsPerCycle) ?? Self.classicSessionsPerCycle,
+        let defaults = TimerSettings()
+        durations = try container.decodeIfPresent(PhaseDurations.self, forKey: .durations) ?? defaults.durations
+        sessionsPerCycle = (
+            try container.decodeIfPresent(Int.self, forKey: .sessionsPerCycle) ?? defaults.sessionsPerCycle
+        ).clamped(
             to: DurationBounds.sessionsPerCycle
         )
-        autoStartNext = try container.decodeIfPresent(Bool.self, forKey: .autoStartNext) ?? true
-        soundOn = try container.decodeIfPresent(Bool.self, forKey: .soundOn) ?? true
-        hapticsOn = try container.decodeIfPresent(Bool.self, forKey: .hapticsOn) ?? true
-        respectSilentMode = try container.decodeIfPresent(Bool.self, forKey: .respectSilentMode) ?? true
+        autoStartNext = try container.decodeIfPresent(Bool.self, forKey: .autoStartNext) ?? defaults.autoStartNext
+        soundOn = try container.decodeIfPresent(Bool.self, forKey: .soundOn) ?? defaults.soundOn
+        hapticsOn = try container.decodeIfPresent(Bool.self, forKey: .hapticsOn) ?? defaults.hapticsOn
+        respectSilentMode = try container.decodeIfPresent(Bool.self, forKey: .respectSilentMode)
+            ?? defaults.respectSilentMode
     }
 }

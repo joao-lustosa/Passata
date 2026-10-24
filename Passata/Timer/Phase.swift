@@ -5,6 +5,10 @@ enum Phase: String, Codable, CaseIterable {
 }
 
 extension Phase {
+    func filledSessionCount(sessionIndex: Int) -> Int {
+        self == .focus ? sessionIndex - 1 : sessionIndex
+    }
+
     var displayName: String {
         switch self {
         case .focus: "Focus"

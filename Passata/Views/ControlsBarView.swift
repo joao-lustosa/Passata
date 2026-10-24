@@ -11,6 +11,9 @@ struct ControlsBarView: View {
     @ScaledMetric(relativeTo: .body) private var primaryVerticalPadding = 14.0
     @ScaledMetric(relativeTo: .body) private var primaryFontSize = 17.0
     @ScaledMetric(relativeTo: .body) private var secondaryFontSize = 15.0
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var usesAccessibilityLayout: Bool { dynamicTypeSize.isAccessibilitySize }
 
     private var accentDeep: Color { PassataPalette.accentDeep(for: engine.phase) }
 
@@ -33,10 +36,13 @@ struct ControlsBarView: View {
                     .font(.system(size: primaryFontSize, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.vertical, primaryVerticalPadding)
-                    .padding(.horizontal, primaryHorizontalPadding)
+                    .padding(.horizontal, usesAccessibilityLayout ? 12 : primaryHorizontalPadding)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
-                    .disabled(engine.status == .complete)
-                    .opacity(engine.status == .complete ? 0.35 : 1)
+            .frame(maxWidth: usesAccessibilityLayout ? .infinity : nil)
+            .disabled(engine.status == .complete)
+            .opacity(engine.status == .complete ? 0.35 : 1)
             .buttonStyle(.plain)
             .passataMacHoverFeedback()
             .glassEffect(.regular.tint(accentDeep), in: .capsule)
@@ -44,10 +50,11 @@ struct ControlsBarView: View {
             GlassEffectContainer(spacing: 0) {
                 HStack(spacing: 0) {
                     Button(action: performReset) {
-                        Label("Reset", systemImage: "arrow.counterclockwise")
+                        resetButtonLabel
                             .frame(minHeight: 46)
-                            .padding(.horizontal, 22)
+                            .padding(.horizontal, usesAccessibilityLayout ? 6 : 22)
                     }
+                    .frame(maxWidth: usesAccessibilityLayout ? .infinity : nil)
                     .disabled(resetAction == .disabled)
                     .opacity(resetAction == .disabled ? 0.35 : 1)
                     .accessibilityLabel("Reset")
@@ -65,10 +72,11 @@ struct ControlsBarView: View {
                         .frame(height: 24)
 
                     Button(action: engine.onSkip) {
-                        Label("Skip", systemImage: "forward.fill")
+                        skipButtonLabel
                             .frame(minHeight: 46)
-                            .padding(.horizontal, 22)
+                            .padding(.horizontal, usesAccessibilityLayout ? 6 : 22)
                     }
+                    .frame(maxWidth: usesAccessibilityLayout ? .infinity : nil)
                     .disabled(engine.status == .complete)
                     .opacity(engine.status == .complete ? 0.35 : 1)
                     .passataMacHoverFeedback()
@@ -78,10 +86,13 @@ struct ControlsBarView: View {
                 .font(.system(size: secondaryFontSize, weight: .medium))
                 .foregroundStyle(Color("PassataInk2"))
                 .buttonStyle(.plain)
+                .frame(maxWidth: usesAccessibilityLayout ? .infinity : nil)
             }
         }
+        .padding(.horizontal, usesAccessibilityLayout ? 20 : 0)
         .padding(.top, 4)
-        .padding(.bottom, 30)
+        .padding(.bottom, usesAccessibilityLayout ? 16 : 30)
+        .frame(maxWidth: .infinity)
         .alert("Restart cycle?", isPresented: $isShowingRestartCycleConfirmation) {
             Button("Restart Cycle", role: .destructive) { engine.restartCycle() }
             Button("Cancel", role: .cancel) {}
@@ -92,6 +103,28 @@ struct ControlsBarView: View {
 
     private func performReset() {
         resetAction.perform(on: engine)
+    }
+
+    @ViewBuilder
+    private var resetButtonLabel: some View {
+        if usesAccessibilityLayout {
+            Text("Reset")
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        } else {
+            Label("Reset", systemImage: "arrow.counterclockwise")
+        }
+    }
+
+    @ViewBuilder
+    private var skipButtonLabel: some View {
+        if usesAccessibilityLayout {
+            Text("Skip")
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        } else {
+            Label("Skip", systemImage: "forward.fill")
+        }
     }
 
     private func requestRestartCycle() {

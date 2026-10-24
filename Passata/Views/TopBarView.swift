@@ -4,6 +4,16 @@ struct TopBarView: View {
     let engine: TimerEngine
     let onSettingsTapped: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var sessionDots: some View {
+        SessionDotsView(
+            phase: engine.phase,
+            sessionIndex: engine.sessionIndex,
+            sessionsPerCycle: engine.sessionsPerCycle
+        )
+    }
+
     private var settingsButton: some View {
         Button(action: onSettingsTapped) {
             Image(systemName: "slider.horizontal.3")
@@ -20,11 +30,7 @@ struct TopBarView: View {
     var body: some View {
         #if os(macOS)
         ZStack {
-            SessionDotsView(
-                phase: engine.phase,
-                sessionIndex: engine.sessionIndex,
-                sessionsPerCycle: engine.sessionsPerCycle
-            )
+            sessionDots
             .frame(maxWidth: .infinity)
 
             HStack {
@@ -34,17 +40,27 @@ struct TopBarView: View {
         }
         .padding(.horizontal, 20)
         #else
-        HStack {
-            SessionDotsView(
-                phase: engine.phase,
-                sessionIndex: engine.sessionIndex,
-                sessionsPerCycle: engine.sessionsPerCycle
-            )
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                ZStack {
+                    sessionDots
+                        .frame(maxWidth: .infinity)
 
-            Spacer()
-            settingsButton
+                    HStack {
+                        Spacer(minLength: 0)
+                        settingsButton
+                    }
+                }
+                .padding(.horizontal, 20)
+            } else {
+                HStack {
+                    sessionDots
+                    Spacer()
+                    settingsButton
+                }
+                .padding(.horizontal, 20)
+            }
         }
-        .padding(.horizontal, 20)
         #endif
     }
 }

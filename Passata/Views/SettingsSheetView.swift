@@ -132,7 +132,7 @@ struct SettingsSheetView: View {
             .padding(.top, 10)
             .padding(.bottom, 24)
         }
-        .confirmationDialog(
+        .alert(
             "Duration change",
             isPresented: durationConfirmationBinding,
             presenting: store.pendingDurationChange

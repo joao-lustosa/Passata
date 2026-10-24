@@ -197,6 +197,7 @@ final class LiveActivityControllerTests: XCTestCase {
         XCTAssertEqual(publisher.snapshot().requestCount, 1)
 
         controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .resumed)
+        controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .reanchored)
         controller.submit(phase: .focus, sessionIndex: 1, render: paused, kind: .paused)
         controller.submit(phase: .focus, sessionIndex: 1, render: .complete, kind: .completed, autoStartNext: false)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: .idle(phaseDurationSeconds: 60), kind: .skipped)
@@ -205,14 +206,14 @@ final class LiveActivityControllerTests: XCTestCase {
 
         await waitUntil {
             let snapshot = publisher.snapshot()
-            return snapshot.requestCount == 2 && snapshot.updateCount == 2 && snapshot.endCount == 3
+            return snapshot.requestCount == 2 && snapshot.updateCount == 3 && snapshot.endCount == 3
         }
         XCTAssertEqual(publisher.snapshot().requestCount, 2)
-        XCTAssertEqual(publisher.snapshot().updateCount, 2)
+        XCTAssertEqual(publisher.snapshot().updateCount, 3)
         XCTAssertEqual(publisher.snapshot().endCount, 3)
         XCTAssertEqual(
             publisher.snapshot().actions,
-            ["request", "update", "update", "end", "end", "request", "end"]
+            ["request", "update", "update", "update", "end", "end", "request", "end"]
         )
         let focusRunning = PassataActivityAttributes.ContentState(
             phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: running)
@@ -221,6 +222,7 @@ final class LiveActivityControllerTests: XCTestCase {
         let deadline = Date(timeIntervalSinceReferenceDate: 220)
         XCTAssertEqual(publisher.snapshot().publications, [
             .init(action: "request", content: focusRunning, staleDate: deadline),
+            .init(action: "update", content: focusRunning, staleDate: deadline),
             .init(action: "update", content: focusRunning, staleDate: deadline),
             .init(action: "update", content: .init(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: paused), staleDate: nil),
             .init(action: "end", content: .init(phase: .focus, sessionIndex: 1, sessionsPerCycle: 4, render: .complete), staleDate: nil),
@@ -292,7 +294,7 @@ private extension LiveActivityController {
         submit(
             phase: phase,
             sessionIndex: sessionIndex,
-            sessionsPerCycle: TimerEngine.sessionsPerCycle,
+            sessionsPerCycle: TimerSettings.classicSessionsPerCycle,
             render: render,
             kind: kind,
             autoStartNext: autoStartNext
@@ -303,7 +305,7 @@ private extension LiveActivityController {
         await reconcileOnLaunch(
             phase: phase,
             sessionIndex: sessionIndex,
-            sessionsPerCycle: TimerEngine.sessionsPerCycle,
+            sessionsPerCycle: TimerSettings.classicSessionsPerCycle,
             status: status,
             render: render
         )
@@ -395,11 +397,12 @@ final class PhaseCompletionControllerTests: XCTestCase {
 
         controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .started)
         controller.submit(phase: .focus, sessionIndex: 1, render: resumed, kind: .resumed)
+        controller.submit(phase: .focus, sessionIndex: 1, render: running, kind: .reanchored)
         controller.submit(phase: .shortBreak, sessionIndex: 1, render: running, kind: .startedNext)
         controller.submit(phase: .focus, sessionIndex: 1, render: resumed, kind: .reconciled)
-        await waitUntil { notifier.snapshot().scheduleCount == 4 }
-        XCTAssertEqual(notifier.snapshot().scheduledPhases, [.focus, .focus, .shortBreak, .focus])
-        XCTAssertEqual(notifier.snapshot().scheduledDeadlines, [220, 280, 220, 280].map {
+        await waitUntil { notifier.snapshot().scheduleCount == 5 }
+        XCTAssertEqual(notifier.snapshot().scheduledPhases, [.focus, .focus, .focus, .shortBreak, .focus])
+        XCTAssertEqual(notifier.snapshot().scheduledDeadlines, [220, 280, 220, 220, 280].map {
             Date(timeIntervalSinceReferenceDate: $0)
         })
 
@@ -430,7 +433,7 @@ private extension PhaseCompletionController {
         submit(
             phase: phase,
             sessionIndex: sessionIndex,
-            sessionsPerCycle: TimerEngine.sessionsPerCycle,
+            sessionsPerCycle: TimerSettings.classicSessionsPerCycle,
             render: render,
             kind: kind,
             autoStartNext: autoStartNext,

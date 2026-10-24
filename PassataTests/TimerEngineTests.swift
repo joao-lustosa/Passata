@@ -96,7 +96,7 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(engine.remainingSeconds, 90)
 
         engine.pause()
-        XCTAssertEqual(engine.state, .paused(remaining: 89.75))
+        XCTAssertEqual(engine.state, .paused(phaseDuration: 120, remaining: 89.75))
         XCTAssertEqual(engine.remainingSeconds, 90)
         XCTAssertEqual(engine.currentRenderState, .paused(remainingSeconds: 90, phaseDurationSeconds: 120))
         clock.now = clock.now.addingTimeInterval(500)
@@ -201,7 +201,7 @@ final class TimerEngineTests: XCTestCase {
 
     func testRestartCycleReturnsEveryPhaseAndSessionToStoppedFocusOneAndPersists() {
         for phase in Phase.allCases {
-            for sessionIndex in 1...TimerEngine.sessionsPerCycle {
+            for sessionIndex in 1...TimerSettings.classicSessionsPerCycle {
                 let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
                 let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
                     phase: phase,
@@ -478,6 +478,7 @@ final class TimerEngineTests: XCTestCase {
             case .startedNext: "startedNext"
             case .reset: "reset"
             case .reconciled: "reconciled"
+            case .reanchored: "reanchored"
             }
         }
         XCTAssertEqual(kinds, ["started", "paused", "resumed", "reset", "skipped", "startedNext", "completed"])
@@ -612,7 +613,7 @@ final class TimerEngineTests: XCTestCase {
 
         XCTAssertEqual(engine.phase, .shortBreak)
         XCTAssertEqual(engine.sessionIndex, 1)
-        XCTAssertEqual(engine.state, .running(endDate: now.addingTimeInterval(30)))
+        XCTAssertEqual(engine.state, .running(phaseDuration: 60, endDate: now.addingTimeInterval(30)))
         XCTAssertEqual(engine.remainingSeconds, 30)
         XCTAssertEqual(events.count, 1)
         if case .reconciled = events[0] {} else { XCTFail("catch-up should publish one reconciled event") }
@@ -639,7 +640,7 @@ final class TimerEngineTests: XCTestCase {
         )
         XCTAssertEqual(engine.phase, .focus)
         XCTAssertEqual(engine.sessionIndex, 3)
-        XCTAssertEqual(engine.state, .running(endDate: now.addingTimeInterval(60)))
+        XCTAssertEqual(engine.state, .running(phaseDuration: 120, endDate: now.addingTimeInterval(60)))
 
         let longBreakNow = now.addingTimeInterval(600)
         let longBreakEngine = TimerEngine(

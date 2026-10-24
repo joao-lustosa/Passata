@@ -4,13 +4,15 @@ import Testing
 
 @Test
 @MainActor
-func currentTimerSettingsShapeDecodesWithoutChangingValues() throws {
-    let json = Data(#"{"durations":{"focusMinutes":42,"shortBreakMinutes":7,"longBreakMinutes":20},"preset":"deep","autoStartNext":false,"soundOn":false,"hapticsOn":false}"#.utf8)
+func preEditableDurationsBlobMigratesMinutesAndIgnoresPreset() throws {
+    let preChangeSettingsBlob = Data(
+        #"{"durations":{"focusMinutes":42,"shortBreakMinutes":7,"longBreakMinutes":20},"preset":"deep","autoStartNext":false,"soundOn":false,"hapticsOn":false}"#.utf8
+    )
 
-    let settings = try JSONDecoder().decode(TimerSettings.self, from: json)
+    let settings = try JSONDecoder().decode(TimerSettings.self, from: preChangeSettingsBlob)
 
-    #expect(settings.durations == PhaseDurations(focusMinutes: 42, shortBreakMinutes: 7, longBreakMinutes: 20))
-    #expect(settings.preset == .deep)
+    #expect(settings.durations == PhaseDurations(focusSeconds: 42 * 60, shortBreakSeconds: 7 * 60, longBreakSeconds: 20 * 60))
+    #expect(settings.sessionsPerCycle == TimerSettings.classicSessionsPerCycle)
     #expect(settings.autoStartNext == false)
     #expect(settings.soundOn == false)
     #expect(settings.hapticsOn == false)
@@ -19,10 +21,55 @@ func currentTimerSettingsShapeDecodesWithoutChangingValues() throws {
 
 @Test
 @MainActor
+func preEditableSettingsBlobLoadsThroughUserDefaultsStore() throws {
+    let suite = "PassataTests.LegacyEditableDurations." + UUID().uuidString
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let key = "timer-settings"
+    defaults.set(
+        Data(#"{"durations":{"focusMinutes":42,"shortBreakMinutes":7,"longBreakMinutes":20},"preset":"deep"}"#.utf8),
+        forKey: key
+    )
+
+    let store = TimerSettingsStore(persister: UserDefaultsSettingsStore(defaults: defaults, key: key))
+
+    #expect(store.settings.durations == PhaseDurations(focusSeconds: 2_520, shortBreakSeconds: 420, longBreakSeconds: 1_200))
+    #expect(store.settings.sessionsPerCycle == TimerSettings.classicSessionsPerCycle)
+}
+
+@Test
+@MainActor
+func legacyDurationsAreClampedAfterConversion() throws {
+    let oldSettings = Data(#"{"durations":{"focusMinutes":250,"shortBreakMinutes":0,"longBreakMinutes":20},"preset":"classic"}"#.utf8)
+
+    let settings = try JSONDecoder().decode(TimerSettings.self, from: oldSettings)
+
+    #expect(settings.durations.focusSeconds == DurationBounds.focus.upperBound)
+    #expect(settings.durations.shortBreakSeconds == DurationBounds.shortBreak.lowerBound)
+    #expect(settings.durations.longBreakSeconds == 20 * 60)
+}
+
+@Test
+@MainActor
+func sessionsPerCycleIsClampedWhenDecoded() throws {
+    let outOfRangeValues = [(0, DurationBounds.sessionsPerCycle.lowerBound),
+                            (13, DurationBounds.sessionsPerCycle.upperBound)]
+    for (storedValue, expectedValue) in outOfRangeValues {
+        let settings = try JSONDecoder().decode(
+            TimerSettings.self,
+            from: Data("{\"sessionsPerCycle\":\(storedValue)}".utf8)
+        )
+
+        #expect(settings.sessionsPerCycle == expectedValue)
+    }
+}
+
+@Test
+@MainActor
 func timerSettingsEncodingRoundTrips() throws {
     var expected = TimerSettings()
-    expected.durations = PhaseDurations(focusMinutes: 42, shortBreakMinutes: 7, longBreakMinutes: 20)
-    expected.preset = .deep
+    expected.durations = PhaseDurations(focusSeconds: 2_522, shortBreakSeconds: 445, longBreakSeconds: 1_202)
+    expected.sessionsPerCycle = 7
     expected.autoStartNext = false
     expected.soundOn = false
     expected.hapticsOn = false
@@ -35,31 +82,30 @@ func timerSettingsEncodingRoundTrips() throws {
 @Test
 @MainActor
 func everyMissingTimerSettingsFieldDefaultsIndependently() throws {
-    let json = Data(#"{"durations":{"focusMinutes":42,"shortBreakMinutes":7,"longBreakMinutes":20},"preset":"deep","autoStartNext":false,"soundOn":false,"hapticsOn":false}"#.utf8)
+    let json = Data(#"{"durations":{"focusSeconds":2520,"shortBreakSeconds":420,"longBreakSeconds":1200},"sessionsPerCycle":6,"autoStartNext":false,"soundOn":false,"hapticsOn":false,"respectSilentMode":false}"#.utf8)
     let decoder = JSONDecoder()
-    let classic = TimerSettings()
-
-    var topLevelCases: [(String, (inout TimerSettings) -> Void)] = [
-        ("preset", { $0.preset = classic.preset }),
-        ("autoStartNext", { $0.autoStartNext = classic.autoStartNext }),
-        ("soundOn", { $0.soundOn = classic.soundOn }),
-        ("hapticsOn", { $0.hapticsOn = classic.hapticsOn }),
-        ("respectSilentMode", { $0.respectSilentMode = classic.respectSilentMode })
-    ]
-    topLevelCases.insert(("durations", { $0.durations = classic.durations }), at: 0)
-
+    let defaults = TimerSettings()
     let originalObject = try #require(JSONSerialization.jsonObject(with: json) as? [String: Any])
+
+    let topLevelCases: [(String, (inout TimerSettings) -> Void)] = [
+        ("sessionsPerCycle", { $0.sessionsPerCycle = defaults.sessionsPerCycle }),
+        ("autoStartNext", { $0.autoStartNext = defaults.autoStartNext }),
+        ("soundOn", { $0.soundOn = defaults.soundOn }),
+        ("hapticsOn", { $0.hapticsOn = defaults.hapticsOn }),
+        ("respectSilentMode", { $0.respectSilentMode = defaults.respectSilentMode }),
+        ("durations", { $0.durations = defaults.durations })
+    ]
+
     for (key, applyDefault) in topLevelCases {
         var object = originalObject
         object.removeValue(forKey: key)
-        let data = try JSONSerialization.data(withJSONObject: object)
-        let actual = try decoder.decode(TimerSettings.self, from: data)
+        let actual = try decoder.decode(TimerSettings.self, from: JSONSerialization.data(withJSONObject: object))
         var expected = try decoder.decode(TimerSettings.self, from: json)
         applyDefault(&expected)
         #expect(actual == expected)
     }
 
-    for key in ["focusMinutes", "shortBreakMinutes", "longBreakMinutes"] {
+    for key in ["focusSeconds", "shortBreakSeconds", "longBreakSeconds"] {
         var object = originalObject
         var durations = try #require(object["durations"] as? [String: Any])
         durations.removeValue(forKey: key)
@@ -67,9 +113,9 @@ func everyMissingTimerSettingsFieldDefaultsIndependently() throws {
         let actual = try decoder.decode(TimerSettings.self, from: JSONSerialization.data(withJSONObject: object))
         var expected = try decoder.decode(TimerSettings.self, from: json)
         switch key {
-        case "focusMinutes": expected.durations.focusMinutes = classic.durations.focusMinutes
-        case "shortBreakMinutes": expected.durations.shortBreakMinutes = classic.durations.shortBreakMinutes
-        case "longBreakMinutes": expected.durations.longBreakMinutes = classic.durations.longBreakMinutes
+        case "focusSeconds": expected.durations.focusSeconds = defaults.durations.focusSeconds
+        case "shortBreakSeconds": expected.durations.shortBreakSeconds = defaults.durations.shortBreakSeconds
+        case "longBreakSeconds": expected.durations.longBreakSeconds = defaults.durations.longBreakSeconds
         default: Issue.record("Unexpected duration key: \(key)")
         }
         #expect(actual == expected)
@@ -99,7 +145,7 @@ func malformedSettingsArePreservedAndCanBeReplacedByAnOrdinarySave(_ value: any 
     let decoded = try JSONDecoder().decode(TimerSettings.self, from: replacement)
     #expect(decoded.soundOn == false)
     #expect(decoded.durations == .classic)
-    #expect(decoded.preset == .classic)
+    #expect(decoded.sessionsPerCycle == TimerSettings.classicSessionsPerCycle)
     #expect(decoded.autoStartNext)
     #expect(decoded.hapticsOn)
 }

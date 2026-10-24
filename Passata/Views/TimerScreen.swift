@@ -27,7 +27,7 @@ struct TimerScreen: View {
 
                     Spacer()
 
-                    ProgressRingView(engine: engine, durationProvider: store)
+                    ProgressRingView(engine: engine)
 
                     Spacer()
 

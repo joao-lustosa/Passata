@@ -5,7 +5,7 @@ import XCTest
 final class ResetControlRuleTests: XCTestCase {
     func testResetIsDisabledOnlyAtTheStartOfFocusOne() {
         for phase in Phase.allCases {
-            for sessionIndex in 1...TimerEngine.sessionsPerCycle {
+            for sessionIndex in 1...TimerSettings.classicSessionsPerCycle {
                 let action = ResetControlRule.action(for: phase, sessionIndex: sessionIndex, status: .idle)
                 let shouldBeDisabled = phase == .focus && sessionIndex == 1
                 XCTAssertEqual(action == .disabled, shouldBeDisabled, "\(phase), session \(sessionIndex)")
@@ -15,7 +15,7 @@ final class ResetControlRuleTests: XCTestCase {
 
     func testResetTapRestartsTheCycleOnlyWhenAnIdlePhaseIsAlreadyAtItsStart() {
         for phase in Phase.allCases {
-            for sessionIndex in 1...TimerEngine.sessionsPerCycle {
+            for sessionIndex in 1...TimerSettings.classicSessionsPerCycle {
                 guard phase != .focus || sessionIndex != 1 else { continue }
                 XCTAssertEqual(
                     ResetControlRule.action(for: phase, sessionIndex: sessionIndex, status: .idle),
@@ -28,7 +28,7 @@ final class ResetControlRuleTests: XCTestCase {
     func testResetTapRestartsTheCurrentPhaseWhenItHasProgress() {
         for status: RunStatus in [.running, .paused, .complete] {
             for phase in Phase.allCases {
-                for sessionIndex in 1...TimerEngine.sessionsPerCycle {
+                for sessionIndex in 1...TimerSettings.classicSessionsPerCycle {
                     XCTAssertEqual(
                         ResetControlRule.action(for: phase, sessionIndex: sessionIndex, status: status),
                         .resetPhase

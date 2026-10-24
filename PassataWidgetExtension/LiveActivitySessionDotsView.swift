@@ -10,9 +10,13 @@ struct LiveActivitySessionDotsView: View {
         phase == .focus ? sessionIndex - 1 : sessionIndex
     }
 
+    private var displayedSessionsPerCycle: Int {
+        max(sessionsPerCycle, sessionIndex)
+    }
+
     var body: some View {
         HStack(spacing: 5) {
-            ForEach(1...sessionsPerCycle, id: \.self) { dotNumber in
+            ForEach(1...displayedSessionsPerCycle, id: \.self) { dotNumber in
                 let filled = dotNumber <= filledCount
                 let current = phase == .focus && dotNumber == sessionIndex && !filled
                 Circle()

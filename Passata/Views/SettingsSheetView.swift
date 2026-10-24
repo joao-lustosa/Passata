@@ -22,7 +22,7 @@ struct SettingsSheetView: View {
 
                     Spacer()
 
-                    Button(action: onClose) {
+                    Button(action: closeSettings) {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Color("PassataInk2"))
@@ -41,34 +41,59 @@ struct SettingsSheetView: View {
 
                 sectionHeader("Timer")
                 groupContainer {
-                    PresetRowView(label: "Preset", valueLabel: presetLabel, onTap: store.cyclePreset)
-                    rowDivider
                     DurationStepperRowView(
                         label: "Focus",
-                        valueLabel: "\(store.settings.durations.focusMinutes) min",
-                        canDecrease: store.settings.durations.focusMinutes > 5,
-                        canIncrease: store.settings.durations.focusMinutes < 90,
-                        onMinus: { store.adjustDuration(\.focusMinutes, delta: -5, in: 5...90, affecting: .focus) },
-                        onPlus: { store.adjustDuration(\.focusMinutes, delta: 5, in: 5...90, affecting: .focus) }
+                        valueLabel: store.settings.durations.focusSeconds.asDurationSettingLabel,
+                        entryValue: store.settings.durations.focusSeconds.asDurationInputString,
+                        entryPrompt: "Enter minutes or m:ss, from 0:30 to 180:00.",
+                        canDecrease: store.settings.durations.focusSeconds > DurationBounds.focus.lowerBound,
+                        canIncrease: store.settings.durations.focusSeconds < DurationBounds.focus.upperBound,
+                        onMinus: { store.adjustDuration(\.focusSeconds, delta: -DurationBounds.stepSeconds, in: DurationBounds.focus, affecting: .focus) },
+                        onPlus: { store.adjustDuration(\.focusSeconds, delta: DurationBounds.stepSeconds, in: DurationBounds.focus, affecting: .focus) },
+                        onValueSubmit: { store.typeDuration($0, affecting: .focus) }
                     )
                     rowDivider
                     DurationStepperRowView(
                         label: "Short Break",
-                        valueLabel: "\(store.settings.durations.shortBreakMinutes) min",
-                        canDecrease: store.settings.durations.shortBreakMinutes > 1,
-                        canIncrease: store.settings.durations.shortBreakMinutes < 30,
-                        onMinus: { store.adjustDuration(\.shortBreakMinutes, delta: -1, in: 1...30, affecting: .shortBreak) },
-                        onPlus: { store.adjustDuration(\.shortBreakMinutes, delta: 1, in: 1...30, affecting: .shortBreak) }
+                        valueLabel: store.settings.durations.shortBreakSeconds.asDurationSettingLabel,
+                        entryValue: store.settings.durations.shortBreakSeconds.asDurationInputString,
+                        entryPrompt: "Enter minutes or m:ss, from 0:30 to 60:00.",
+                        canDecrease: store.settings.durations.shortBreakSeconds > DurationBounds.shortBreak.lowerBound,
+                        canIncrease: store.settings.durations.shortBreakSeconds < DurationBounds.shortBreak.upperBound,
+                        onMinus: { store.adjustDuration(\.shortBreakSeconds, delta: -DurationBounds.stepSeconds, in: DurationBounds.shortBreak, affecting: .shortBreak) },
+                        onPlus: { store.adjustDuration(\.shortBreakSeconds, delta: DurationBounds.stepSeconds, in: DurationBounds.shortBreak, affecting: .shortBreak) },
+                        onValueSubmit: { store.typeDuration($0, affecting: .shortBreak) }
                     )
                     rowDivider
                     DurationStepperRowView(
                         label: "Long Break",
-                        valueLabel: "\(store.settings.durations.longBreakMinutes) min",
-                        canDecrease: store.settings.durations.longBreakMinutes > 5,
-                        canIncrease: store.settings.durations.longBreakMinutes < 60,
-                        onMinus: { store.adjustDuration(\.longBreakMinutes, delta: -5, in: 5...60, affecting: .longBreak) },
-                        onPlus: { store.adjustDuration(\.longBreakMinutes, delta: 5, in: 5...60, affecting: .longBreak) }
+                        valueLabel: store.settings.durations.longBreakSeconds.asDurationSettingLabel,
+                        entryValue: store.settings.durations.longBreakSeconds.asDurationInputString,
+                        entryPrompt: "Enter minutes or m:ss, from 0:30 to 60:00.",
+                        canDecrease: store.settings.durations.longBreakSeconds > DurationBounds.longBreak.lowerBound,
+                        canIncrease: store.settings.durations.longBreakSeconds < DurationBounds.longBreak.upperBound,
+                        onMinus: { store.adjustDuration(\.longBreakSeconds, delta: -DurationBounds.stepSeconds, in: DurationBounds.longBreak, affecting: .longBreak) },
+                        onPlus: { store.adjustDuration(\.longBreakSeconds, delta: DurationBounds.stepSeconds, in: DurationBounds.longBreak, affecting: .longBreak) },
+                        onValueSubmit: { store.typeDuration($0, affecting: .longBreak) }
                     )
+                    rowDivider
+                    DurationStepperRowView(
+                        label: "Sessions per cycle",
+                        valueLabel: String(store.sessionsPerCycle),
+                        entryValue: String(store.sessionsPerCycle),
+                        entryPrompt: "Enter a whole number from 1 to 12.",
+                        canDecrease: store.sessionsPerCycle > DurationBounds.sessionsPerCycle.lowerBound,
+                        canIncrease: store.sessionsPerCycle < DurationBounds.sessionsPerCycle.upperBound,
+                        onMinus: { store.adjustSessionsPerCycle(by: -1) },
+                        onPlus: { store.adjustSessionsPerCycle(by: 1) },
+                        onValueSubmit: { store.typeSessionsPerCycle($0) }
+                    )
+                    rowDivider
+                    Button("Reset to Defaults", action: store.resetToDefaults)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color("PassataInk"))
+                        .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+                        .padding(.horizontal, 16)
                 }
 
                 sectionHeader("Notifications")
@@ -107,15 +132,44 @@ struct SettingsSheetView: View {
             .padding(.top, 10)
             .padding(.bottom, 24)
         }
+        .alert(
+            "Duration change",
+            isPresented: durationConfirmationBinding,
+            presenting: store.pendingDurationChange
+        ) { pending in
+            Button("Restart Session") {
+                store.resolvePendingDurationChange(restartCurrentPhase: true)
+            }
+            Button("Apply Next Session") {
+                store.resolvePendingDurationChange(restartCurrentPhase: false)
+            }
+            Button("Cancel", role: .cancel) {
+                store.cancelPendingDurationChange()
+            }
+        } message: { pending in
+            if pending.isResetToDefaults {
+                Text("Reset all durations and sessions per cycle? The current phase needs to restart or use its new duration next session.")
+            } else {
+                Text("Changing the current phase duration affects this session.")
+            }
+        }
+        .onDisappear(perform: store.cancelPendingDurationChange)
     }
 
-    private var presetLabel: String {
-        switch store.settings.preset {
-        case .classic: "Classic"
-        case .deep: "Deep Work"
-        case .short: "Short Bursts"
-        case .custom: "Custom"
-        }
+    private var durationConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { store.pendingDurationChange != nil },
+            set: { isPresented in
+                // The action buttons resolve or cancel the pending change. Do not clear it
+                // from this dismissal setter before the selected action has run.
+                if isPresented { return }
+            }
+        )
+    }
+
+    private func closeSettings() {
+        store.cancelPendingDurationChange()
+        onClose()
     }
 
     private var soundBinding: Binding<Bool> {

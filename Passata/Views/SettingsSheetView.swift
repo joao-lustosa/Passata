@@ -110,7 +110,7 @@ struct SettingsSheetView: View {
                 }
                 #if os(iOS)
                 Text("Notifications always follow your iPhone's silent setting")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(.system(size: footerFontSize, weight: .regular))
                     .foregroundStyle(Color("PassataInk2"))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 8)

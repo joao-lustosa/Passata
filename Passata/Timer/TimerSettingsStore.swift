@@ -51,8 +51,8 @@ enum DurationChangeRule {
     ) {
         let currentValue = settings.durations[keyPath: keyPath]
         let adjustment = currentValue.addingReportingOverflow(delta)
-        let value = PhaseDurations.clamp(adjustment.overflow ? (delta < 0 ? Int.min : Int.max) : adjustment.partialValue,
-                                         to: range)
+        let adjustedValue = adjustment.overflow ? (delta < 0 ? Int.min : Int.max) : adjustment.partialValue
+        let value = adjustedValue.clamped(to: range)
         requestDurationChange(affecting: phase, newSeconds: value) { settings in
             settings.durations[keyPath: keyPath] = value
         }
@@ -69,10 +69,8 @@ enum DurationChangeRule {
 
     func adjustSessionsPerCycle(by delta: Int) {
         let adjustment = settings.sessionsPerCycle.addingReportingOverflow(delta)
-        settings.sessionsPerCycle = PhaseDurations.clamp(
-            adjustment.overflow ? (delta < 0 ? Int.min : Int.max) : adjustment.partialValue,
-            to: DurationBounds.sessionsPerCycle
-        )
+        settings.sessionsPerCycle = (adjustment.overflow ? (delta < 0 ? Int.min : Int.max) : adjustment.partialValue)
+            .clamped(to: DurationBounds.sessionsPerCycle)
         persistAndReanchor()
     }
 
@@ -87,10 +85,7 @@ enum DurationChangeRule {
     }
 
     func resetToDefaults() {
-        var defaults = settings
-        defaults.durations = .classic
-        defaults.sessionsPerCycle = TimerSettings.classicSessionsPerCycle
-
+        let defaults = TimerSettings()
         if let engine,
            DurationChangeRule.requiresConfirmation(
             changing: engine.phase,
@@ -100,13 +95,14 @@ enum DurationChangeRule {
             capturedDuration: engine.currentPhaseDuration
            ) {
             pendingDurationChange = PendingDurationChange(phase: engine.phase, isResetToDefaults: true) { settings in
-                settings.durations = .classic
-                settings.sessionsPerCycle = TimerSettings.classicSessionsPerCycle
+                settings.durations = defaults.durations
+                settings.sessionsPerCycle = defaults.sessionsPerCycle
             }
             return
         }
 
-        settings = defaults
+        settings.durations = defaults.durations
+        settings.sessionsPerCycle = defaults.sessionsPerCycle
         persistAndReanchor(syncIdlePhase: engine?.phase)
     }
 

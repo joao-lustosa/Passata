@@ -8,10 +8,6 @@ struct PhaseDurations: Codable, Equatable {
     func seconds(for phase: Phase) -> Int {
         self[keyPath: phase.durationsKeyPath]
     }
-
-    static func clamp(_ seconds: Int, to bounds: ClosedRange<Int>) -> Int {
-        min(bounds.upperBound, max(bounds.lowerBound, seconds))
-    }
 }
 
 extension Phase {
@@ -71,13 +67,13 @@ extension PhaseDurations {
         bounds: ClosedRange<Int>
     ) throws -> Int {
         if let seconds = try container.decodeIfPresent(Int.self, forKey: currentKey) {
-            return clamp(seconds, to: bounds)
+            return seconds.clamped(to: bounds)
         }
         if let minutes = try legacyContainer.decodeIfPresent(Int.self, forKey: legacyKey) {
             let conversion = minutes.multipliedReportingOverflow(by: 60)
-            return clamp(conversion.overflow ? (minutes < 0 ? Int.min : Int.max) : conversion.partialValue, to: bounds)
+            return (conversion.overflow ? (minutes < 0 ? Int.min : Int.max) : conversion.partialValue).clamped(to: bounds)
         }
-        return clamp(defaultValue, to: bounds)
+        return defaultValue.clamped(to: bounds)
     }
 }
 

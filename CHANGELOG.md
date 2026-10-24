@@ -11,14 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Editable focus and break durations, sessions per cycle, and reset-to-default settings.
 - A completion chime with a setting to respect iPhone Silent Mode.
-- Restart Cycle from the Reset control and catch-up for phases missed while the app is backgrounded.
+- Restart Cycle from the Reset control, catch-up for phases missed while backgrounded, and chained completion notifications.
 - Adaptive layouts for accessibility text sizes and compact Live Activity presentations.
 
 ### Changed
 
 - Preserve saved settings when newer settings fields are absent, and keep the timer ring and countdown aligned when durations change.
-- Share widget countdown formatting, session-dot rules, and settings defaults across app targets.
-
 ### Fixed
 
 - Keep the duration settings readable at large text sizes and show an explicit Cancel action in duration prompts.

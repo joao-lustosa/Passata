@@ -16,6 +16,10 @@ Actively developed. The core timer, settings, and completion feedback are implem
 - A home screen widget extension
 - An adaptive app icon
 - Native macOS support, including background operation through a menu bar item so the timer keeps running after the main window is closed
+- Editable focus and break durations and sessions per cycle, with direct entry and a reset to defaults
+- A completion chime that respects iPhone Silent Mode; notification sounds always follow the system setting
+- Restart Cycle from the Reset control
+- Catch-up for phases missed while the app is backgrounded, with chained completion notifications and best-effort background refresh
 
 ## Requirements
 

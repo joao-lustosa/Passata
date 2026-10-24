@@ -69,6 +69,7 @@ struct DeterminateCircularProgressView: View {
 
 struct DynamicIslandCompactTrailingView: View {
     let state: PassataActivityAttributes.ContentState
+    let isDynamicIslandLimitedInWidth: Bool
 
     var body: some View {
         timeText
@@ -83,11 +84,27 @@ struct DynamicIslandCompactTrailingView: View {
 
     @ViewBuilder
     private var timeText: some View {
-        if case let .running(phaseStart, phaseEnd) = state.render {
+        if isDynamicIslandLimitedInWidth {
+            LiveActivityLimitedWidthCountdown(render: state.render)
+        } else if case let .running(phaseStart, phaseEnd) = state.render {
             // The host updates this discrete format; it also stops at zero after expiry.
             Text(.currentDate, format: CompactCountdownFormat.timerStyle(countingDownIn: phaseStart..<phaseEnd))
         } else {
             LiveActivityTimeText(render: state.render)
         }
+    }
+}
+
+@available(iOS 27.0, *)
+struct DynamicIslandLimitedWidthCompactTrailingView: View {
+    let state: PassataActivityAttributes.ContentState
+
+    @Environment(\.isDynamicIslandLimitedInWidth) private var isDynamicIslandLimitedInWidth
+
+    var body: some View {
+        DynamicIslandCompactTrailingView(
+            state: state,
+            isDynamicIslandLimitedInWidth: isDynamicIslandLimitedInWidth
+        )
     }
 }

@@ -23,3 +23,40 @@ func compactCountdownUsesShortNumericTimerFormat() {
 func integerClockFormatting(seconds: Int, expected: String) {
     #expect(seconds.asClockString == expected)
 }
+
+@Test(arguments: [
+    (0, "0"),
+    (1, "1"),
+    (59, "1"),
+    (60, "1"),
+    (61, "2"),
+    (-1, "0")
+])
+@MainActor
+func limitedWidthIdleCountdownRoundsUpToWholeMinutes(seconds: Int, expected: String) {
+    let label = CompactCountdownFormat.limitedWidthStaticLabel(for: .idle(phaseDurationSeconds: seconds))
+
+    #expect(label == expected)
+}
+
+@Test(arguments: [
+    (0, "0"),
+    (1, "1"),
+    (59, "1"),
+    (60, "1"),
+    (61, "2"),
+    (-1, "0")
+])
+@MainActor
+func limitedWidthPausedCountdownRoundsUpToWholeMinutes(seconds: Int, expected: String) {
+    let render = RenderState.paused(remainingSeconds: seconds, phaseDurationSeconds: 120)
+    let label = CompactCountdownFormat.limitedWidthStaticLabel(for: render)
+
+    #expect(label == expected)
+}
+
+@Test
+@MainActor
+func limitedWidthCompletedCountdownShowsZero() {
+    #expect(CompactCountdownFormat.limitedWidthStaticLabel(for: .complete) == "0")
+}

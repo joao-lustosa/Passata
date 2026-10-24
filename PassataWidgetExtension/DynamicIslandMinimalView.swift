@@ -4,23 +4,10 @@ import SwiftUI
 struct DynamicIslandMinimalView: View {
     let state: PassataActivityAttributes.ContentState
 
-    @Environment(\.isDynamicIslandLimitedInWidth) private var isDynamicIslandLimitedInWidth
-
     private var accent: Color { PassataPalette.accent(for: state.phase) }
 
     var body: some View {
-        ZStack {
-            ActivityProgressView(render: state.render, accent: accent)
-
-            if isDynamicIslandLimitedInWidth {
-                LiveActivityLimitedWidthCountdown(render: state.render)
-                    .font(.system(size: 6, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.65)
-            }
-        }
+        ActivityProgressView(render: state.render, accent: accent)
         .frame(width: 19, height: 19)
     }
 }

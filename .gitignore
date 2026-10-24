@@ -8,6 +8,7 @@ DerivedData/
 *.xcresult
 
 # App packaging
+*.xcarchive
 *.ipa
 *.dSYM
 *.dSYM.zip

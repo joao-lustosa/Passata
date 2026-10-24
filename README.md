@@ -29,7 +29,7 @@ Actively developed. The core timer, settings, and completion feedback are implem
 
 ## Continuous Integration
 
-Every push runs the unit test suite on macOS and iOS via GitHub Actions — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Pushes to `develop` and `main`, and pull requests targeting either branch, run the unit test suite on macOS and iOS via GitHub Actions — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Support
 

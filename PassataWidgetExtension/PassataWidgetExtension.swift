@@ -26,7 +26,7 @@ struct PassataWidgetExtension: Widget {
                         .environment(\.colorScheme, .dark)
                 }
             } minimal: {
-                DynamicIslandMinimalContent(state: context.state)
+                DynamicIslandMinimalView(state: context.state)
             }
         }
     }

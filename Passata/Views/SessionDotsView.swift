@@ -10,7 +10,7 @@ struct SessionDotsView: View {
     }
 
     private var displayedSessionsPerCycle: Int {
-        max(sessionsPerCycle, sessionIndex)
+        Phase.displayedSessionCount(sessionIndex: sessionIndex, sessionsPerCycle: sessionsPerCycle)
     }
 
     var body: some View {

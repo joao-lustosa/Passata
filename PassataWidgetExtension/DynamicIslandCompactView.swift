@@ -85,11 +85,7 @@ struct DynamicIslandCompactTrailingView: View {
     private var timeText: some View {
         if case let .running(phaseStart, phaseEnd) = state.render {
             // The host updates this discrete format; it also stops at zero after expiry.
-            Text(.currentDate, format: .timer(
-                countingDownIn: phaseStart..<phaseEnd,
-                showsHours: false,
-                maxFieldCount: 2
-            ).locale(Locale(identifier: "en_US_POSIX")))
+            Text(.currentDate, format: CompactCountdownFormat.timerStyle(countingDownIn: phaseStart..<phaseEnd))
         } else {
             LiveActivityTimeText(render: state.render)
         }

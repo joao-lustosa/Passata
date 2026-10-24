@@ -18,11 +18,15 @@ final class PassataUITestsLaunchTests: XCTestCase {
 
         // See PassataUITests.setUpWithError: Passata now survives its window closing on macOS,
         // so a leftover background instance from a prior run/test must be cleared before launch.
-        XCUIApplication().terminate()
+        MainActor.assumeIsolated {
+            XCUIApplication().terminate()
+        }
     }
 
     override func tearDownWithError() throws {
-        XCUIApplication().terminate()
+        MainActor.assumeIsolated {
+            XCUIApplication().terminate()
+        }
     }
 
     @MainActor

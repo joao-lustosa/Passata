@@ -21,12 +21,16 @@ final class PassataUITests: XCTestCase {
         // AppDelegate.applicationShouldTerminateAfterLastWindowClosed) instead of quitting when
         // its window closes. Without this, a leftover instance from a previous test/run sits in
         // "Running Background" and XCUIApplication's next launch() fails to activate it.
-        XCUIApplication().terminate()
+        MainActor.assumeIsolated {
+            XCUIApplication().terminate()
+        }
     }
 
     override func tearDownWithError() throws {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
-        XCUIApplication().terminate()
+        MainActor.assumeIsolated {
+            XCUIApplication().terminate()
+        }
     }
 
     @MainActor

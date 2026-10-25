@@ -31,6 +31,19 @@ Actively developed. The core timer, settings, and completion feedback are implem
 
 Pushes to `develop` and `main`, and pull requests targeting either branch, run the unit test suite on macOS and iOS via GitHub Actions — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
+## TestFlight builds
+
+From a non-interactive shell, source the local App Store Connect environment file and run the dry run first:
+
+```sh
+source ~/.appstoreconnect/passata.env
+Scripts/upload-testflight.sh --dry-run
+```
+
+The dry run archives and exports locally, validates the app's export-compliance key and the embedded widget display name, and never uploads. The build number defaults to the next value after the project's `CURRENT_PROJECT_VERSION`; pass `--build-number N` to choose one explicitly. `--marketing-version VERSION` overrides the project marketing version for that build only.
+
+Only after explicit user approval, run `Scripts/upload-testflight.sh --upload` to send the exported archive to App Store Connect. The script reads the API key from `~/.appstoreconnect/private_keys/AuthKey_<ASC_KEY_ID>.p8`; it does not display or store credentials. If non-interactive signing cannot access the Apple Distribution identity, unlock/authorize that identity once in Keychain Access for command-line use, then rerun the dry run. Do not change keychain access settings automatically.
+
 ## Support
 
 Passata is free and will stay free. If you'd like to support development, you can sponsor it on [GitHub Sponsors](https://github.com/sponsors/joao-lustosa).

@@ -65,6 +65,12 @@ if [[ ! -f "$api_key_path" ]]; then
     echo "The App Store Connect API key file is not present at the configured location." >&2
     exit 1
 fi
+signing_arguments=(
+    -allowProvisioningUpdates
+    -authenticationKeyPath "$api_key_path"
+    -authenticationKeyID "$ASC_KEY_ID"
+    -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+)
 
 if [[ -n "$requested_build_number" ]]; then
     [[ "$requested_build_number" =~ ^[0-9]+$ ]] || { echo "Build number must be a positive integer." >&2; exit 2; }
@@ -106,10 +112,7 @@ if [[ -n "$requested_marketing_version" ]]; then
         -destination 'generic/platform=iOS' \
         -archivePath "$archive_path" \
         -derivedDataPath "$temporary_directory/DerivedData" \
-        -allowProvisioningUpdates \
-        -authenticationKeyPath "$api_key_path" \
-        -authenticationKeyID "$ASC_KEY_ID" \
-        -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+        "${signing_arguments[@]}" \
         CURRENT_PROJECT_VERSION="$build_number" \
         MARKETING_VERSION="$requested_marketing_version" \
         archive
@@ -121,10 +124,7 @@ else
         -destination 'generic/platform=iOS' \
         -archivePath "$archive_path" \
         -derivedDataPath "$temporary_directory/DerivedData" \
-        -allowProvisioningUpdates \
-        -authenticationKeyPath "$api_key_path" \
-        -authenticationKeyID "$ASC_KEY_ID" \
-        -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+        "${signing_arguments[@]}" \
         CURRENT_PROJECT_VERSION="$build_number" \
         archive
 fi
@@ -147,7 +147,8 @@ if [[ "$mode" == "--dry-run" ]]; then
         -exportArchive \
         -archivePath "$archive_path" \
         -exportPath "$export_path" \
-        -exportOptionsPlist "$export_options"
+        -exportOptionsPlist "$export_options" \
+        "${signing_arguments[@]}"
     actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_info")"
     echo "Dry run succeeded: version ${requested_marketing_version:-$actual_version}, build $build_number. No upload was performed."
 else
@@ -159,10 +160,7 @@ else
         -exportArchive \
         -archivePath "$archive_path" \
         -exportOptionsPlist "$upload_options" \
-        -allowProvisioningUpdates \
-        -authenticationKeyPath "$api_key_path" \
-        -authenticationKeyID "$ASC_KEY_ID" \
-        -authenticationKeyIssuerID "$ASC_ISSUER_ID" >"$export_log" 2>&1; then
+        "${signing_arguments[@]}" >"$export_log" 2>&1; then
         sed -e "s/${ASC_KEY_ID}/[REDACTED]/g" -e "s/${ASC_ISSUER_ID}/[REDACTED]/g" "$export_log"
         actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_info")"
         echo "Upload submitted: version ${requested_marketing_version:-$actual_version}, build $build_number."

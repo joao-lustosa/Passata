@@ -5,6 +5,14 @@ enum Phase: String, Codable, CaseIterable {
 }
 
 extension Phase {
+    static func displayedSessionCount(sessionIndex: Int, sessionsPerCycle: Int) -> Int {
+        max(sessionsPerCycle, sessionIndex)
+    }
+
+    func filledSessionCount(sessionIndex: Int) -> Int {
+        self == .focus ? sessionIndex - 1 : sessionIndex
+    }
+
     var displayName: String {
         switch self {
         case .focus: "Focus"

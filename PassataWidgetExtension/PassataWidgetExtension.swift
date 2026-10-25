@@ -10,7 +10,7 @@ struct PassataWidgetExtension: Widget {
                 .environment(\.colorScheme, .dark)
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.center) {
+                DynamicIslandExpandedRegion(.bottom) {
                     DynamicIslandExpandedView(state: context.state)
                         .environment(\.colorScheme, .dark)
                 }
@@ -18,14 +18,15 @@ struct PassataWidgetExtension: Widget {
                 DynamicIslandCompactLeadingView(state: context.state)
                     .environment(\.colorScheme, .dark)
             } compactTrailing: {
-                DynamicIslandCompactTrailingView(state: context.state)
-                    .environment(\.colorScheme, .dark)
+                if #available(iOS 27.0, *) {
+                    DynamicIslandLimitedWidthCompactTrailingView(state: context.state)
+                        .environment(\.colorScheme, .dark)
+                } else {
+                    DynamicIslandCompactTrailingView(state: context.state, isDynamicIslandLimitedInWidth: false)
+                        .environment(\.colorScheme, .dark)
+                }
             } minimal: {
-                ActivityProgressView(
-                    render: context.state.render,
-                    accent: PassataPalette.accent(for: context.state.phase)
-                )
-                .frame(width: 19, height: 19)
+                DynamicIslandMinimalView(state: context.state)
             }
         }
     }

@@ -6,12 +6,16 @@ struct SessionDotsView: View {
     let sessionsPerCycle: Int
 
     private var filledCount: Int {
-        phase == .focus ? sessionIndex - 1 : sessionIndex
+        phase.filledSessionCount(sessionIndex: sessionIndex)
+    }
+
+    private var displayedSessionsPerCycle: Int {
+        Phase.displayedSessionCount(sessionIndex: sessionIndex, sessionsPerCycle: sessionsPerCycle)
     }
 
     var body: some View {
         HStack(spacing: 8) {
-            ForEach(1...sessionsPerCycle, id: \.self) { dotNumber in
+            ForEach(1...displayedSessionsPerCycle, id: \.self) { dotNumber in
                 let isFilled = dotNumber <= filledCount
                 let isCurrent = phase == .focus && dotNumber == sessionIndex && !isFilled
 
@@ -32,6 +36,6 @@ struct SessionDotsView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Session \(sessionIndex) of \(sessionsPerCycle)")
+        .accessibilityLabel("Session \(sessionIndex) of \(displayedSessionsPerCycle)")
     }
 }

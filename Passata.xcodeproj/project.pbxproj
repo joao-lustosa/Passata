@@ -40,6 +40,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		27ADBA813050F9E000497436 /* Passata */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A70B0001305AE00100497436 /* AppInfoPlistExceptionSet */,
+			);
 			path = Passata;
 			sourceTree = "<group>";
 		};
@@ -64,6 +67,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A70B0001305AE00100497436 /* AppInfoPlistExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 27ADBA7E3050F9E000497436 /* Passata */;
+		};
 		27ADB01A3050F9E100497436 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -106,6 +116,7 @@
 
 /* Begin PBXBuildFile section */
 		AABBCC013050F9E100497436 /* ClockFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCC023050F9E100497436 /* ClockFormatting.swift */; };
+		AABBCC033050F9E100497436 /* CompactCountdownFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCC043050F9E100497436 /* CompactCountdownFormat.swift */; };
 		27ADB00A3050F9E100497436 /* PassataWidgetExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 27ADB0013050F9E100497436 /* PassataWidgetExtension.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		27ADB0103050F9E100497436 /* Phase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ADB0143050F9E100497436 /* Phase.swift */; };
 		27ADB0113050F9E100497436 /* PassataActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27ADB0153050F9E100497436 /* PassataActivityAttributes.swift */; };
@@ -349,6 +360,7 @@
 			files = (
 				27ADB0103050F9E100497436 /* Phase.swift in Sources */,
 				AABBCC013050F9E100497436 /* ClockFormatting.swift in Sources */,
+				AABBCC033050F9E100497436 /* CompactCountdownFormat.swift in Sources */,
 				27ADB0113050F9E100497436 /* PassataActivityAttributes.swift in Sources */,
 				27ADB0123050F9E100497436 /* PassataPalette.swift in Sources */,
 				27ADB01B3050F9E100497436 /* RenderState.swift in Sources */,
@@ -360,6 +372,7 @@
 /* Begin PBXFileReference section (shared extension files) */
 		27ADB0143050F9E100497436 /* Phase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Timer/Phase.swift; sourceTree = "<group>"; };
 		AABBCC023050F9E100497436 /* ClockFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Timer/ClockFormatting.swift; sourceTree = "<group>"; };
+		AABBCC043050F9E100497436 /* CompactCountdownFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Timer/CompactCountdownFormat.swift; sourceTree = "<group>"; };
 		27ADB0153050F9E100497436 /* PassataActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/LiveActivity/PassataActivityAttributes.swift; sourceTree = "<group>"; };
 		27ADB0163050F9E100497436 /* PassataPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Passata/Theme/PassataPalette.swift; sourceTree = "<group>"; };
 		27ADB0173050F9E100497436 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Passata/Theme/Assets.xcassets; sourceTree = "<group>"; };
@@ -523,6 +536,8 @@
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xrsimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "AppDelegate.swift MenuBarExtraContentView.swift PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=iphoneos*]" = Passata/Info.plist;
+				"INFOPLIST_FILE[sdk=iphonesimulator*]" = Passata/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -575,6 +590,8 @@
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xrsimulator*]" = "AppDelegate.swift MenuBarExtraContentView.swift";
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=xros*]" = "AppDelegate.swift MenuBarExtraContentView.swift PassataActivityAttributes.swift LiveActivityPublishing.swift LiveActivityController.swift";
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=iphoneos*]" = Passata/Info.plist;
+				"INFOPLIST_FILE[sdk=iphonesimulator*]" = Passata/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

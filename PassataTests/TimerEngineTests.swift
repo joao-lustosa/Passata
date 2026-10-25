@@ -35,45 +35,36 @@ final class TimerEngineTests: XCTestCase {
     func testManualTransitionsCancelPendingAutoAdvanceEvenIfAnotherPhaseCompletes() async {
         let actions: [(String, (TimerEngine) -> Void, Phase)] = [
             ("reset", { $0.onReset() }, .focus),
+            ("restart cycle", { $0.restartCycle() }, .focus),
             ("skip", { $0.onSkip() }, .shortBreak),
             ("start next", { $0.onStartNext() }, .shortBreak)
         ]
-        var engines: [TimerEngine] = []
-        var unexpectedAdvances: [XCTestExpectation] = []
-
         for (name, action, expectedPhase) in actions {
             let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
-            let engine = makeEngine(clock: clock)
+            let delay = ManualAutoAdvanceDelay()
+            let engine = makeEngine(clock: clock, autoAdvanceDelay: delay)
             engine.start()
-            clock.now = clock.now.addingTimeInterval(120)
+            clock.now = clock.now.addingTimeInterval(121)
             engine.checkForCompletion()
-            await Task.yield()
+            await delay.waitForCallCount(1)
 
             action(engine)
             XCTAssertEqual(engine.phase, expectedPhase, name)
             XCTAssertEqual(engine.sessionIndex, 1, name)
+            await delay.waitForCancellationCount(1)
+
+            var staleAdvanceOccurred = false
+            engine.onStateChange = { _, _, _, kind in
+                if case .startedNext = kind { staleAdvanceOccurred = true }
+            }
             engine.autoStartNext = false
-            if engine.status == .idle { engine.start() }
-            clock.now = clock.now.addingTimeInterval(180)
+            if engine.status != .running { engine.start() }
+            let phaseDuration: TimeInterval = expectedPhase == .shortBreak ? 60 : 120
+            clock.now = clock.now.addingTimeInterval(phaseDuration + 1)
             engine.checkForCompletion()
             XCTAssertEqual(engine.status, .complete, name)
-
-            // Returning to complete makes the old task's status guard pass;
-            // only cancellation prevents it from advancing this newer completion.
-            let unexpectedAdvance = expectation(description: "No stale auto-advance after " + name)
-            unexpectedAdvance.isInverted = true
-            engine.onStateChange = { _, _, _, kind in
-                if case .startedNext = kind { unexpectedAdvance.fulfill() }
-            }
-            engines.append(engine)
-            unexpectedAdvances.append(unexpectedAdvance)
-        }
-
-        await fulfillment(of: unexpectedAdvances, timeout: 1.8)
-        for (engine, action) in zip(engines, actions) {
-            XCTAssertEqual(engine.status, .complete, action.0)
-            XCTAssertEqual(engine.phase, action.2, action.0)
-            XCTAssertEqual(engine.sessionIndex, 1, action.0)
+            await Task.yield()
+            XCTAssertFalse(staleAdvanceOccurred, name)
         }
     }
 
@@ -105,7 +96,7 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(engine.remainingSeconds, 90)
 
         engine.pause()
-        XCTAssertEqual(engine.state, .paused(remaining: 89.75))
+        XCTAssertEqual(engine.state, .paused(phaseDuration: 120, remaining: 89.75))
         XCTAssertEqual(engine.remainingSeconds, 90)
         XCTAssertEqual(engine.currentRenderState, .paused(remainingSeconds: 90, phaseDurationSeconds: 120))
         clock.now = clock.now.addingTimeInterval(500)
@@ -171,6 +162,69 @@ final class TimerEngineTests: XCTestCase {
         XCTAssertEqual(engine.remainingSeconds, 60)
         XCTAssertEqual(engine.phase, .shortBreak)
         XCTAssertEqual(engine.sessionIndex, 1)
+    }
+
+    func testPhaseResetRestoresFullDurationFromRunningAndPausedProgress() {
+        for shouldPause in [false, true] {
+            let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+            let store = RecordingTimerStateStore()
+            var resetWasEmitted = false
+            let engine = TimerEngine(
+                durationProvider: TestDurationProvider(),
+                dateProvider: clock,
+                persister: store,
+                autoStartNext: false,
+                onStateChange: { _, _, _, kind in
+                    if case .reset = kind { resetWasEmitted = true }
+                }
+            )
+
+            engine.onSkip()
+            engine.start()
+            clock.now = clock.now.addingTimeInterval(20)
+            engine.recomputeRemaining()
+            XCTAssertEqual(engine.remainingSeconds, 40)
+            if shouldPause { engine.pause() }
+
+            engine.onReset()
+
+            XCTAssertEqual(engine.phase, .shortBreak)
+            XCTAssertEqual(engine.sessionIndex, 1)
+            XCTAssertEqual(engine.status, .idle)
+            XCTAssertEqual(engine.remainingSeconds, 60)
+            XCTAssertEqual(store.latest?.phase, .shortBreak)
+            XCTAssertEqual(store.latest?.status, .idle)
+            XCTAssertNil(store.latest?.endDate)
+            XCTAssertTrue(resetWasEmitted)
+        }
+    }
+
+    func testRestartCycleReturnsEveryPhaseAndSessionToStoppedFocusOneAndPersists() {
+        for phase in Phase.allCases {
+            for sessionIndex in 1...TimerSettings.classicSessionsPerCycle {
+                let clock = FakeDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+                let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
+                    phase: phase,
+                    status: .paused,
+                    sessionIndex: sessionIndex,
+                    endDate: nil,
+                    pausedRemaining: 37
+                ))
+                let engine = makeEngine(clock: clock, store: store, autoStartNext: false)
+
+                engine.restartCycle()
+
+                XCTAssertEqual(engine.phase, .focus, "From \(phase), session \(sessionIndex)")
+                XCTAssertEqual(engine.sessionIndex, 1, "From \(phase), session \(sessionIndex)")
+                XCTAssertEqual(engine.status, .idle, "From \(phase), session \(sessionIndex)")
+                XCTAssertEqual(engine.remainingSeconds, 120, "From \(phase), session \(sessionIndex)")
+                XCTAssertEqual(store.latest?.phase, .focus)
+                XCTAssertEqual(store.latest?.sessionIndex, 1)
+                XCTAssertEqual(store.latest?.status, .idle)
+                XCTAssertNil(store.latest?.endDate)
+                XCTAssertNil(store.latest?.pausedRemaining)
+            }
+        }
     }
 
     func testCompletionIsDetectedWithoutSleeping() {
@@ -276,11 +330,11 @@ final class TimerEngineTests: XCTestCase {
             phase: .focus,
             status: .running,
             sessionIndex: 2,
-            endDate: now.addingTimeInterval(-1),
+            endDate: now.addingTimeInterval(-3),
             pausedRemaining: nil
         ))
 
-        let engine = makeEngine(clock: clock, store: store)
+        let engine = makeEngine(clock: clock, store: store, autoStartNext: false)
 
         XCTAssertEqual(engine.status, .complete)
         XCTAssertEqual(engine.phase, .focus)
@@ -295,7 +349,7 @@ final class TimerEngineTests: XCTestCase {
             phase: .focus,
             status: .running,
             sessionIndex: 2,
-            endDate: now.addingTimeInterval(-1),
+            endDate: now.addingTimeInterval(-3),
             pausedRemaining: nil
         ))
         var completionCount = 0
@@ -304,11 +358,16 @@ final class TimerEngineTests: XCTestCase {
             durationProvider: TestDurationProvider(),
             dateProvider: clock,
             persister: store,
+            autoStartNext: false,
             onPhaseCompleted: { completionCount += 1 }
         )
 
         XCTAssertEqual(engine.status, .complete)
+        #if os(macOS)
         XCTAssertEqual(completionCount, 1)
+        #else
+        XCTAssertEqual(completionCount, 0)
+        #endif
     }
 
     func testInitExpiredSnapshotPublishesCompletedStateChange() {
@@ -318,7 +377,7 @@ final class TimerEngineTests: XCTestCase {
             phase: .focus,
             status: .running,
             sessionIndex: 2,
-            endDate: now.addingTimeInterval(-1),
+            endDate: now.addingTimeInterval(-3),
             pausedRemaining: nil
         ))
         var received: (Phase, Int, RenderState, TimerEngine.TransitionKind)?
@@ -341,10 +400,10 @@ final class TimerEngineTests: XCTestCase {
         } else {
             XCTFail("expired snapshot should publish a complete render state")
         }
-        if case .completed? = received?.3 {
-            // Expected completion transition.
+        if case .reconciled? = received?.3 {
+            // Expected missed-completion reconciliation.
         } else {
-            XCTFail("expired snapshot should publish a completed transition")
+            XCTFail("expired snapshot should publish a reconciled transition")
         }
     }
 
@@ -418,19 +477,21 @@ final class TimerEngineTests: XCTestCase {
             case .skipped: "skipped"
             case .startedNext: "startedNext"
             case .reset: "reset"
+            case .reconciled: "reconciled"
+            case .reanchored: "reanchored"
             }
         }
         XCTAssertEqual(kinds, ["started", "paused", "resumed", "reset", "skipped", "startedNext", "completed"])
     }
 
-    func testInitExpiredSnapshotRespectsDisabledAutoAdvance() async {
+    func testInitExpiredSnapshotRespectsDisabledAutoAdvance() {
         let now = Date(timeIntervalSinceReferenceDate: 1_000)
         let clock = FakeDateProvider(now: now)
         let store = RecordingTimerStateStore(snapshot: TimerSnapshot(
             phase: .shortBreak,
             status: .running,
             sessionIndex: 2,
-            endDate: now.addingTimeInterval(-1),
+            endDate: now.addingTimeInterval(-3),
             pausedRemaining: nil
         ))
 
@@ -443,7 +504,6 @@ final class TimerEngineTests: XCTestCase {
 
         XCTAssertEqual(engine.status, .complete)
         XCTAssertEqual(engine.phase, .shortBreak)
-        try? await Task.sleep(for: .seconds(1.6))
         XCTAssertEqual(engine.status, .complete)
         XCTAssertEqual(engine.phase, .shortBreak)
     }
@@ -481,42 +541,196 @@ final class TimerEngineTests: XCTestCase {
         let now = Date(timeIntervalSinceReferenceDate: 1_000)
 
         let disabledClock = FakeDateProvider(now: now)
-        let disabledEngine = makeEngine(clock: disabledClock)
+        let disabledDelay = ManualAutoAdvanceDelay()
+        let disabledEngine = makeEngine(clock: disabledClock, autoAdvanceDelay: disabledDelay)
         disabledEngine.autoStartNext = false
         disabledEngine.start()
         disabledClock.now = now.addingTimeInterval(121)
         disabledEngine.recomputeRemaining()
         disabledEngine.checkForCompletion()
-        try? await Task.sleep(for: .seconds(1.6))
         XCTAssertEqual(disabledEngine.status, .complete)
+        let disabledCallCount = disabledDelay.currentCallCount()
+        XCTAssertEqual(disabledCallCount, 0)
 
         let longBreakClock = FakeDateProvider(now: now)
         let longBreakStore = RecordingTimerStateStore(snapshot: TimerSnapshot(
             phase: .longBreak,
             status: .running,
             sessionIndex: 4,
-            endDate: now.addingTimeInterval(-1),
+            endDate: now.addingTimeInterval(-3),
             pausedRemaining: nil
         ))
-        let longBreakEngine = makeEngine(clock: longBreakClock, store: longBreakStore)
-        try? await Task.sleep(for: .seconds(1.6))
+        let longBreakDelay = ManualAutoAdvanceDelay()
+        let longBreakEngine = makeEngine(clock: longBreakClock, store: longBreakStore, autoAdvanceDelay: longBreakDelay)
         XCTAssertEqual(longBreakEngine.status, .complete)
         XCTAssertEqual(longBreakEngine.phase, .longBreak)
+        let longBreakCallCount = longBreakDelay.currentCallCount()
+        XCTAssertEqual(longBreakCallCount, 0)
 
         let enabledClock = FakeDateProvider(now: now)
-        let enabledEngine = makeEngine(clock: enabledClock)
+        let enabledDelay = ManualAutoAdvanceDelay()
+        let startedNext = expectation(description: "the injected delay releases the next phase")
+        let enabledEngine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: enabledClock,
+            persister: RecordingTimerStateStore(),
+            autoAdvanceDelay: enabledDelay,
+            onStateChange: { _, _, _, kind in
+                if case .startedNext = kind { startedNext.fulfill() }
+            }
+        )
         enabledEngine.start()
         enabledClock.now = now.addingTimeInterval(121)
         enabledEngine.recomputeRemaining()
         enabledEngine.checkForCompletion()
-        try? await Task.sleep(for: .seconds(1.6))
+        await enabledDelay.waitForCallCount(1)
+        enabledDelay.resumeNext()
+        await fulfillment(of: [startedNext], timeout: 2)
         XCTAssertEqual(enabledEngine.status, .running)
         XCTAssertEqual(enabledEngine.phase, .shortBreak)
         XCTAssertEqual(enabledEngine.remainingSeconds, 60)
     }
 
-    private func makeEngine(clock: FakeDateProvider, store: RecordingTimerStateStore = RecordingTimerStateStore()) -> TimerEngine {
-        TimerEngine(durationProvider: TestDurationProvider(), dateProvider: clock, persister: store)
+    func testMissedBoundaryWalkLandsInCurrentPhaseWithOriginalDeadline() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = FakeDateProvider(now: now)
+        let snapshot = TimerSnapshot(
+            phase: .focus,
+            status: .running,
+            sessionIndex: 1,
+            endDate: now.addingTimeInterval(-30),
+            pausedRemaining: nil
+        )
+        var events: [TimerEngine.TransitionKind] = []
+        var completionCount = 0
+        let engine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: clock,
+            persister: RecordingTimerStateStore(snapshot: snapshot),
+            onPhaseCompleted: { completionCount += 1 },
+            onStateChange: { _, _, _, kind in events.append(kind) }
+        )
+
+        XCTAssertEqual(engine.phase, .shortBreak)
+        XCTAssertEqual(engine.sessionIndex, 1)
+        XCTAssertEqual(engine.state, .running(phaseDuration: 60, endDate: now.addingTimeInterval(30)))
+        XCTAssertEqual(engine.remainingSeconds, 30)
+        XCTAssertEqual(events.count, 1)
+        if case .reconciled = events[0] {} else { XCTFail("catch-up should publish one reconciled event") }
+        #if os(macOS)
+        XCTAssertEqual(completionCount, 1, "macOS plays completion feedback once when it catches up")
+        #else
+        XCTAssertEqual(completionCount, 0, "iOS leaves missed-boundary feedback to the scheduled notifications")
+        #endif
+    }
+
+    func testMissedBoundariesWalkAcrossSessionsAndStopAtLongBreak() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = FakeDateProvider(now: now)
+        let engine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: clock,
+            persister: RecordingTimerStateStore(snapshot: TimerSnapshot(
+                phase: .focus,
+                status: .running,
+                sessionIndex: 1,
+                endDate: now.addingTimeInterval(-300),
+                pausedRemaining: nil
+            ))
+        )
+        XCTAssertEqual(engine.phase, .focus)
+        XCTAssertEqual(engine.sessionIndex, 3)
+        XCTAssertEqual(engine.state, .running(phaseDuration: 120, endDate: now.addingTimeInterval(60)))
+
+        let longBreakNow = now.addingTimeInterval(600)
+        let longBreakEngine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: FakeDateProvider(now: longBreakNow),
+            persister: RecordingTimerStateStore(snapshot: TimerSnapshot(
+                phase: .focus,
+                status: .running,
+                sessionIndex: 4,
+                endDate: now,
+                pausedRemaining: nil
+            ))
+        )
+        XCTAssertEqual(longBreakEngine.phase, .longBreak)
+        XCTAssertEqual(longBreakEngine.sessionIndex, 4)
+        XCTAssertEqual(longBreakEngine.status, .complete)
+    }
+
+    func testMissedBoundaryWithAutoAdvanceDisabledCompletesCurrentPhaseOnly() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let engine = TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: FakeDateProvider(now: now),
+            persister: RecordingTimerStateStore(snapshot: TimerSnapshot(
+                phase: .focus,
+                status: .running,
+                sessionIndex: 2,
+                endDate: now.addingTimeInterval(-30),
+                pausedRemaining: nil
+            )),
+            autoStartNext: false
+        )
+
+        XCTAssertEqual(engine.phase, .focus)
+        XCTAssertEqual(engine.sessionIndex, 2)
+        XCTAssertEqual(engine.status, .complete)
+    }
+
+    func testLateCompletionWithinToleranceUsesTheLiveCompletionPath() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = FakeDateProvider(now: now)
+        var events: [TimerEngine.TransitionKind] = []
+        let engine = makeEngine(clock: clock, autoStartNext: false)
+        engine.onStateChange = { _, _, _, kind in events.append(kind) }
+        engine.start()
+        clock.now = now.addingTimeInterval(121.9)
+        engine.checkForCompletion()
+
+        XCTAssertEqual(engine.status, .complete)
+        XCTAssertEqual(events.count, 2)
+        if case .started = events[0], case .completed = events[1] {} else {
+            XCTFail("within-tolerance completion should retain the normal started/completed events")
+        }
+    }
+
+    func testUpcomingBoundariesStopAfterLongBreakOrWhenAutoStartDisabled() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = FakeDateProvider(now: now)
+        let engine = makeEngine(clock: clock)
+        engine.start()
+
+        XCTAssertEqual(engine.upcomingBoundaries.map(\.phase), [
+            .focus, .shortBreak, .focus, .shortBreak, .focus,
+            .shortBreak, .focus, .longBreak
+        ])
+        XCTAssertEqual(engine.upcomingBoundaries.map(\.phaseEnd), [
+            now.addingTimeInterval(120), now.addingTimeInterval(180),
+            now.addingTimeInterval(300), now.addingTimeInterval(360),
+            now.addingTimeInterval(480), now.addingTimeInterval(540),
+            now.addingTimeInterval(660), now.addingTimeInterval(840)
+        ])
+        XCTAssertEqual(engine.upcomingBoundaries.count, 8)
+
+        engine.autoStartNext = false
+        XCTAssertEqual(engine.upcomingBoundaries.count, 1)
+    }
+
+    private func makeEngine(
+        clock: FakeDateProvider,
+        store: RecordingTimerStateStore = RecordingTimerStateStore(),
+        autoAdvanceDelay: any AutoAdvanceDelaying = SystemAutoAdvanceDelay(),
+        autoStartNext: Bool = true
+    ) -> TimerEngine {
+        TimerEngine(
+            durationProvider: TestDurationProvider(),
+            dateProvider: clock,
+            persister: store,
+            autoAdvanceDelay: autoAdvanceDelay,
+            autoStartNext: autoStartNext
+        )
     }
 }
 
@@ -537,4 +751,62 @@ private final class RecordingTimerStateStore: TimerStatePersisting {
     init(snapshot: TimerSnapshot? = nil) { self.snapshot = snapshot }
     func load() -> TimerSnapshot? { snapshot }
     func save(_ snapshot: TimerSnapshot) { self.snapshot = snapshot }
+}
+
+nonisolated private final class ManualAutoAdvanceDelay: AutoAdvanceDelaying, @unchecked Sendable {
+    private let lock = NSLock()
+    private var callCount = 0
+    private var cancellationCount = 0
+    private var continuations: [CheckedContinuation<Void, Error>] = []
+
+    func wait() async throws {
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let cancelled = lock.withLock {
+                    callCount += 1
+                    if Task.isCancelled {
+                        cancellationCount += 1
+                        return true
+                    }
+                    continuations.append(continuation)
+                    return false
+                }
+                if cancelled { continuation.resume(throwing: CancellationError()) }
+            }
+        } onCancel: {
+            self.cancelNextWaiter()
+        }
+    }
+
+    func currentCallCount() -> Int { lock.withLock { callCount } }
+    func currentCancellationCount() -> Int { lock.withLock { cancellationCount } }
+
+    func waitForCallCount(_ expected: Int) async {
+        for _ in 0..<10_000 {
+            if currentCallCount() >= expected { return }
+            await Task.yield()
+        }
+        XCTFail("Timed out waiting for injected delay")
+    }
+
+    func waitForCancellationCount(_ expected: Int) async {
+        for _ in 0..<10_000 {
+            if currentCancellationCount() >= expected { return }
+            await Task.yield()
+        }
+        XCTFail("Timed out waiting for delay cancellation")
+    }
+
+    func resumeNext() {
+        let continuation = lock.withLock { continuations.isEmpty ? nil : continuations.removeFirst() }
+        continuation?.resume()
+    }
+
+    private func cancelNextWaiter() {
+        let continuation = lock.withLock { () -> CheckedContinuation<Void, Error>? in
+            cancellationCount += 1
+            return continuations.isEmpty ? nil : continuations.removeFirst()
+        }
+        continuation?.resume(throwing: CancellationError())
+    }
 }

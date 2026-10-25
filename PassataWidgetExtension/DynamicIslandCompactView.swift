@@ -8,8 +8,8 @@ struct DynamicIslandCompactLeadingView: View {
     var body: some View {
         ActivityProgressView(render: state.render, accent: accent)
             .frame(width: 19, height: 19)
-            .padding(.leading, 12)
-            .padding(.trailing, 6)
+            .padding(.leading, 4)
+            .padding(.trailing, 2)
     }
 }
 
@@ -69,14 +69,42 @@ struct DeterminateCircularProgressView: View {
 
 struct DynamicIslandCompactTrailingView: View {
     let state: PassataActivityAttributes.ContentState
+    let isDynamicIslandLimitedInWidth: Bool
 
     var body: some View {
-        LiveActivityTimeText(render: state.render)
+        timeText
             .font(.system(size: 15, weight: .semibold))
             .monospacedDigit()
-            .foregroundStyle(.white)
+            .foregroundStyle(PassataPalette.accent(for: state.phase))
             .lineLimit(1)
-            .padding(.leading, 6)
-            .padding(.trailing, 13)
+            .minimumScaleFactor(0.5)
+            .multilineTextAlignment(.trailing)
+            .frame(maxWidth: 52, alignment: .trailing)
+    }
+
+    @ViewBuilder
+    private var timeText: some View {
+        if isDynamicIslandLimitedInWidth {
+            LiveActivityLimitedWidthCountdown(render: state.render)
+        } else if case let .running(phaseStart, phaseEnd) = state.render {
+            // The host updates this discrete format; it also stops at zero after expiry.
+            Text(.currentDate, format: CompactCountdownFormat.timerStyle(countingDownIn: phaseStart..<phaseEnd))
+        } else {
+            LiveActivityTimeText(render: state.render)
+        }
+    }
+}
+
+@available(iOS 27.0, *)
+struct DynamicIslandLimitedWidthCompactTrailingView: View {
+    let state: PassataActivityAttributes.ContentState
+
+    @Environment(\.isDynamicIslandLimitedInWidth) private var isDynamicIslandLimitedInWidth
+
+    var body: some View {
+        DynamicIslandCompactTrailingView(
+            state: state,
+            isDynamicIslandLimitedInWidth: isDynamicIslandLimitedInWidth
+        )
     }
 }

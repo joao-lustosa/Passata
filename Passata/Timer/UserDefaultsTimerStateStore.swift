@@ -10,8 +10,22 @@ struct UserDefaultsTimerStateStore: TimerStatePersisting {
     }
 
     func load() -> TimerSnapshot? {
-        guard let data = defaults.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(TimerSnapshot.self, from: data)
+        guard let object = defaults.object(forKey: key) else { return nil }
+        do {
+            guard let data = object as? Data else {
+                throw DecodingError.typeMismatch(
+                    Data.self,
+                    .init(codingPath: [], debugDescription: "Stored value is not Data")
+                )
+            }
+            return try JSONDecoder().decode(TimerSnapshot.self, from: data)
+        } catch {
+            defaults.set(object, forKey: key + ".unreadable")
+            #if DEBUG
+            print("Passata: \(key) present but undecodable (\(error)); moved aside, running on defaults.")
+            #endif
+            return nil
+        }
     }
 
     func save(_ snapshot: TimerSnapshot) {

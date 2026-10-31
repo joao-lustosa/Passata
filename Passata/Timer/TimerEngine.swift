@@ -3,6 +3,7 @@ import Observation
 
 @Observable final class TimerEngine {
     private(set) var phase: Phase
+    @ObservationIgnored private(set) var phaseOccurrenceID = 0
     private(set) var state: TimerRunState
     var status: RunStatus {
         switch state {
@@ -79,6 +80,7 @@ import Observation
 
     func start() {
         guard state == .idle else { return }
+        advancePhaseOccurrence()
         let phaseDuration = durationProvider.duration(for: phase)
         state = .running(phaseDuration: phaseDuration,
                          endDate: dateProvider.now.addingTimeInterval(TimeInterval(phaseDuration)))
@@ -116,6 +118,7 @@ import Observation
     func onReset() {
         guard state != .idle else { return }
         autoAdvanceTask?.cancel()
+        advancePhaseOccurrence()
         let fullDuration = durationProvider.duration(for: phase)
         state = .idle
         remainingSeconds = fullDuration
@@ -125,6 +128,7 @@ import Observation
 
     func restartCycle() {
         autoAdvanceTask?.cancel()
+        advancePhaseOccurrence()
         phase = .focus
         sessionIndex = 1
         state = .idle
@@ -169,6 +173,7 @@ import Observation
     }
 
     private func completeLivePhase() {
+        advancePhaseOccurrence()
         remainingSeconds = 0
         state = .complete
         onPhaseCompleted?()
@@ -178,6 +183,7 @@ import Observation
     }
 
     private func reconcileMissedPhases(from firstBoundary: Date, through now: Date) {
+        advancePhaseOccurrence()
         var landedPhase = phase
         var landedSessionIndex = sessionIndex
         var boundary = firstBoundary
@@ -269,6 +275,7 @@ import Observation
     }
 
     private func transitionToNextPhase(autoStart: Bool) {
+        advancePhaseOccurrence()
         let next = phase.next(sessionIndex: sessionIndex, sessionsPerCycle: sessionsPerCycle)
         phase = next.phase
         sessionIndex = next.sessionIndex
@@ -283,6 +290,10 @@ import Observation
 
     private func emitStateChange(_ kind: TransitionKind) {
         onStateChange?(phase, sessionIndex, currentRenderState, kind)
+    }
+
+    private func advancePhaseOccurrence() {
+        phaseOccurrenceID &+= 1
     }
 
     var currentRenderState: RenderState {

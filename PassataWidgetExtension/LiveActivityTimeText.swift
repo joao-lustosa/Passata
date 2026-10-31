@@ -11,7 +11,7 @@ struct LiveActivityTimeText: View {
         case let .idle(seconds), let .paused(seconds, _):
             Text(seconds.asClockString)
         case .complete:
-            Text("00:00")
+            Text("0:00")
         }
     }
 }

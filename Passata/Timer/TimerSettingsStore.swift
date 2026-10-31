@@ -6,15 +6,29 @@ struct PendingDurationChange {
     let apply: (inout TimerSettings) -> Void
 }
 
+private enum DurationChangeDecision {
+    case applyToNextSession
+    case restartCurrentPhase
+}
+
+private struct RememberedDurationChange {
+    let phase: Phase
+    let phaseOccurrenceID: Int
+    let decision: DurationChangeDecision
+}
+
 enum DurationChangeRule {
     static func requiresConfirmation(
         changing phase: Phase,
         to newSeconds: Int,
         enginePhase: Phase,
         status: RunStatus,
-        capturedDuration: Int
+        capturedDuration: Int,
+        hasRememberedDecision: Bool = false
     ) -> Bool {
-        guard status == .running || status == .paused, phase == enginePhase else { return false }
+        guard !hasRememberedDecision,
+              status == .running || status == .paused,
+              phase == enginePhase else { return false }
         return newSeconds != capturedDuration
     }
 }
@@ -26,6 +40,7 @@ enum DurationChangeRule {
     weak var engine: TimerEngine?
 
     private let persister: any SettingsPersisting
+    private var rememberedDurationChange: RememberedDurationChange?
 
     init(
         persister: any SettingsPersisting = UserDefaultsSettingsStore(),
@@ -86,13 +101,15 @@ enum DurationChangeRule {
 
     func resetToDefaults() {
         let defaults = TimerSettings()
+        let decision = engine.flatMap { rememberedDecision(for: $0.phase) }
         if let engine,
            DurationChangeRule.requiresConfirmation(
             changing: engine.phase,
             to: PhaseDurations.classic.seconds(for: engine.phase),
             enginePhase: engine.phase,
             status: engine.status,
-            capturedDuration: engine.currentPhaseDuration
+            capturedDuration: engine.currentPhaseDuration,
+            hasRememberedDecision: decision != nil
            ) {
             pendingDurationChange = PendingDurationChange(phase: engine.phase, isResetToDefaults: true) { settings in
                 settings.durations = defaults.durations
@@ -103,25 +120,26 @@ enum DurationChangeRule {
 
         settings.durations = defaults.durations
         settings.sessionsPerCycle = defaults.sessionsPerCycle
-        persistAndReanchor(syncIdlePhase: engine?.phase)
+        persistAndReanchor(syncIdlePhase: engine?.phase, decision: decision)
     }
 
     func resolvePendingDurationChange(restartCurrentPhase: Bool) {
         guard let pending = pendingDurationChange else { return }
+        let decision: DurationChangeDecision = restartCurrentPhase ? .restartCurrentPhase : .applyToNextSession
+        if let engine,
+           engine.phase == pending.phase,
+           engine.status == .running || engine.status == .paused {
+            rememberedDurationChange = RememberedDurationChange(
+                phase: pending.phase,
+                phaseOccurrenceID: engine.phaseOccurrenceID,
+                decision: decision
+            )
+        }
         var updated = settings
         pending.apply(&updated)
         settings = updated
         persister.save(settings)
-        syncIdleDuration(for: pending.phase)
-
-        if restartCurrentPhase,
-           let engine,
-           engine.phase == pending.phase,
-           engine.status == .running || engine.status == .paused {
-            engine.restartCurrentPhase()
-        } else if engine?.status == .running {
-            engine?.reanchorSchedule()
-        }
+        updateEngineAfterDurationChange(for: pending.phase, decision: decision)
         pendingDurationChange = nil
     }
 
@@ -155,38 +173,76 @@ enum DurationChangeRule {
         newSeconds: Int,
         apply: @escaping (inout TimerSettings) -> Void
     ) {
+        let decision = rememberedDecision(for: phase)
         if let engine,
            DurationChangeRule.requiresConfirmation(
             changing: phase,
             to: newSeconds,
             enginePhase: engine.phase,
             status: engine.status,
-            capturedDuration: engine.currentPhaseDuration
+            capturedDuration: engine.currentPhaseDuration,
+            hasRememberedDecision: decision != nil
            ) {
             pendingDurationChange = PendingDurationChange(phase: phase, isResetToDefaults: false, apply: apply)
             return
         }
 
-        applyChange(affecting: phase, apply: apply)
+        applyChange(affecting: phase, decision: decision, apply: apply)
     }
 
-    private func applyChange(affecting phase: Phase?, apply: (inout TimerSettings) -> Void) {
+    private func applyChange(
+        affecting phase: Phase,
+        decision: DurationChangeDecision?,
+        apply: (inout TimerSettings) -> Void
+    ) {
         var updated = settings
         apply(&updated)
         settings = updated
         persister.save(settings)
-        if let phase { syncIdleDuration(for: phase) }
-        if engine?.status == .running { engine?.reanchorSchedule() }
+        updateEngineAfterDurationChange(for: phase, decision: decision)
     }
 
-    private func persistAndReanchor(syncIdlePhase phase: Phase? = nil) {
+    private func persistAndReanchor(
+        syncIdlePhase phase: Phase? = nil,
+        decision: DurationChangeDecision? = nil
+    ) {
         persister.save(settings)
-        if let phase { syncIdleDuration(for: phase) }
-        if engine?.status == .running { engine?.reanchorSchedule() }
+        updateEngineAfterDurationChange(for: phase, decision: decision)
     }
 
     private func syncIdleDuration(for phase: Phase) {
         engine?.syncIdleDuration(ifCurrentPhaseIs: phase, seconds: duration(for: phase))
+    }
+
+    private func rememberedDecision(for phase: Phase) -> DurationChangeDecision? {
+        guard let engine,
+              engine.phase == phase,
+              engine.status == .running || engine.status == .paused,
+              let rememberedDurationChange,
+              rememberedDurationChange.phase == phase,
+              rememberedDurationChange.phaseOccurrenceID == engine.phaseOccurrenceID else {
+            return nil
+        }
+        return rememberedDurationChange.decision
+    }
+
+    private func updateEngineAfterDurationChange(for phase: Phase?, decision: DurationChangeDecision?) {
+        if let phase { syncIdleDuration(for: phase) }
+        guard let engine else { return }
+
+        if let phase,
+           phase == engine.phase,
+           engine.status == .running || engine.status == .paused,
+           let decision {
+            switch decision {
+            case .applyToNextSession:
+                if engine.status == .running { engine.reanchorSchedule() }
+            case .restartCurrentPhase:
+                engine.restartCurrentPhase()
+            }
+        } else if engine.status == .running {
+            engine.reanchorSchedule()
+        }
     }
 
     private func bounds(for phase: Phase) -> ClosedRange<Int> {

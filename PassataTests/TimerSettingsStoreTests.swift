@@ -121,44 +121,151 @@ final class TimerSettingsStoreTests: XCTestCase {
         XCTAssertTrue(DurationChangeRule.requiresConfirmation(
             changing: .focus, to: 1_560, enginePhase: .focus, status: .paused, capturedDuration: 1_500
         ))
+        XCTAssertFalse(DurationChangeRule.requiresConfirmation(
+            changing: .focus,
+            to: 1_560,
+            enginePhase: .focus,
+            status: .running,
+            capturedDuration: 1_500,
+            hasRememberedDecision: true
+        ))
     }
 
-    func testCurrentDurationChangeSupportsApplyNextRestartAndCancel() {
+    func testRestartChoiceIsRememberedForTheCurrentPhaseOccurrence() {
         let clock = SettingsTestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
-        let persister = SettingsSpy()
+        let store = TimerSettingsStore(persister: SettingsSpy())
         let statePersister = SettingsTestTimerStateStore()
-        let store = TimerSettingsStore(persister: persister)
         let engine = TimerEngine(durationProvider: store, dateProvider: clock, persister: statePersister)
         store.engine = engine
         engine.start()
-        let initialRender = engine.currentRenderState
 
         XCTAssertTrue(store.typeDuration("26", affecting: .focus))
         XCTAssertNotNil(store.pendingDurationChange)
         XCTAssertEqual(store.settings.durations.focusSeconds, 1_500)
-        XCTAssertEqual(engine.currentRenderState, initialRender)
-        store.resolvePendingDurationChange(restartCurrentPhase: false)
-        XCTAssertNil(store.pendingDurationChange)
-        XCTAssertEqual(store.settings.durations.focusSeconds, 1_560)
-        XCTAssertEqual(engine.currentPhaseDuration, 1_500)
-        XCTAssertEqual(engine.currentRenderState, initialRender)
-
-        XCTAssertTrue(store.typeDuration("27", affecting: .focus))
-        XCTAssertNotNil(store.pendingDurationChange, "Each changed value must ask again during the same occurrence")
         store.resolvePendingDurationChange(restartCurrentPhase: true)
+        XCTAssertEqual(store.settings.durations.focusSeconds, 1_560)
+        XCTAssertEqual(engine.currentPhaseDuration, 1_560)
+        XCTAssertEqual(engine.remainingSeconds, 1_560)
+
+        clock.now = clock.now.addingTimeInterval(10)
+        XCTAssertTrue(store.typeDuration("27", affecting: .focus))
+        XCTAssertNil(store.pendingDurationChange)
         XCTAssertEqual(store.settings.durations.focusSeconds, 1_620)
         XCTAssertEqual(engine.currentPhaseDuration, 1_620)
         XCTAssertEqual(engine.remainingSeconds, 1_620)
         XCTAssertEqual(statePersister.latest?.phaseDuration, 1_620)
         XCTAssertEqual(statePersister.latest?.endDate, clock.now.addingTimeInterval(1_620))
 
-        let beforeCancel = store.settings
-        let saveCountBeforeCancel = persister.saveCount
+        clock.now = clock.now.addingTimeInterval(10)
         XCTAssertTrue(store.typeDuration("28", affecting: .focus))
-        store.cancelPendingDurationChange()
         XCTAssertNil(store.pendingDurationChange)
-        XCTAssertEqual(store.settings, beforeCancel)
-        XCTAssertEqual(persister.saveCount, saveCountBeforeCancel)
+        XCTAssertEqual(store.settings.durations.focusSeconds, 1_680)
+        XCTAssertEqual(engine.currentPhaseDuration, 1_680)
+        XCTAssertEqual(engine.remainingSeconds, 1_680)
+        XCTAssertEqual(statePersister.latest?.endDate, clock.now.addingTimeInterval(1_680))
+
+        store.resetToDefaults()
+        XCTAssertNil(store.pendingDurationChange)
+        XCTAssertEqual(store.settings.durations, .classic)
+        XCTAssertEqual(engine.currentPhaseDuration, PhaseDurations.classic.focusSeconds)
+        XCTAssertEqual(engine.remainingSeconds, PhaseDurations.classic.focusSeconds)
+    }
+
+    func testApplyNextChoiceIsRememberedForTheCurrentPausedOccurrence() {
+        let clock = SettingsTestClock(now: Date(timeIntervalSinceReferenceDate: 2_100))
+        let store = TimerSettingsStore(persister: SettingsSpy())
+        let engine = TimerEngine(durationProvider: store, dateProvider: clock, persister: SettingsTestTimerStateStore())
+        store.engine = engine
+        engine.start()
+        clock.now = clock.now.addingTimeInterval(30)
+        engine.pause()
+        let pausedRender = engine.currentRenderState
+
+        XCTAssertTrue(store.typeDuration("26", affecting: .focus))
+        XCTAssertNotNil(store.pendingDurationChange)
+        store.resolvePendingDurationChange(restartCurrentPhase: false)
+
+        XCTAssertTrue(store.typeDuration("27", affecting: .focus))
+        XCTAssertNil(store.pendingDurationChange)
+        XCTAssertEqual(store.settings.durations.focusSeconds, 1_620)
+        XCTAssertEqual(engine.status, .paused)
+        XCTAssertEqual(engine.currentPhaseDuration, 1_500)
+        XCTAssertEqual(engine.remainingSeconds, 1_470)
+        XCTAssertEqual(engine.currentRenderState, pausedRender)
+    }
+
+    func testCancellingDurationChangeDoesNotRememberAnAnswer() {
+        let store = TimerSettingsStore(persister: SettingsSpy())
+        let engine = TimerEngine(durationProvider: store, persister: SettingsTestTimerStateStore())
+        store.engine = engine
+        engine.start()
+
+        XCTAssertTrue(store.typeDuration("26", affecting: .focus))
+        XCTAssertNotNil(store.pendingDurationChange)
+        store.cancelPendingDurationChange()
+
+        XCTAssertTrue(store.typeDuration("27", affecting: .focus))
+        XCTAssertNotNil(store.pendingDurationChange)
+        XCTAssertEqual(store.settings.durations.focusSeconds, 1_500)
+    }
+
+    func testEachPhaseOccurrenceBoundaryRequiresAConfirmationAgain() {
+        let actions: [(String, (TimerEngine, SettingsTestClock) -> Phase)] = [
+            ("completion and next phase", { engine, clock in
+                clock.now = clock.now.addingTimeInterval(TimeInterval(engine.currentPhaseDuration))
+                engine.checkForCompletion()
+                XCTAssertEqual(engine.status, .complete)
+                engine.onStartNext()
+                return engine.phase
+            }),
+            ("skip", { engine, _ in
+                engine.onSkip()
+                engine.start()
+                return engine.phase
+            }),
+            ("reset", { engine, _ in
+                engine.onReset()
+                engine.start()
+                return engine.phase
+            }),
+            ("restart cycle", { engine, _ in
+                engine.restartCycle()
+                engine.start()
+                return engine.phase
+            }),
+            ("next phase starts", { engine, _ in
+                engine.onStartNext()
+                return engine.phase
+            })
+        ]
+
+        for (name, action) in actions {
+            let clock = SettingsTestClock(now: Date(timeIntervalSinceReferenceDate: 2_200))
+            let store = TimerSettingsStore(persister: SettingsSpy())
+            let engine = TimerEngine(
+                durationProvider: store,
+                dateProvider: clock,
+                persister: SettingsTestTimerStateStore(),
+                autoStartNext: false
+            )
+            store.engine = engine
+            engine.start()
+
+            XCTAssertTrue(store.typeDuration("26", affecting: .focus), name)
+            XCTAssertNotNil(store.pendingDurationChange, name)
+            store.resolvePendingDurationChange(restartCurrentPhase: false)
+            XCTAssertNil(store.pendingDurationChange, name)
+
+            let phase = action(engine, clock)
+            XCTAssertEqual(engine.status, .running, name)
+            let changedDurationInput = switch phase {
+            case .focus: "27"
+            case .shortBreak: "6"
+            case .longBreak: "16"
+            }
+            XCTAssertTrue(store.typeDuration(changedDurationInput, affecting: phase), name)
+            XCTAssertNotNil(store.pendingDurationChange, name)
+        }
     }
 
     func testApplyNextSessionPersistsTheCapturedDurationForRelaunch() throws {

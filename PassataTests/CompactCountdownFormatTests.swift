@@ -14,10 +14,12 @@ func compactCountdownUsesShortNumericTimerFormat() {
 }
 
 @Test(arguments: [
-    (0, "00:00"),
-    (65, "01:05"),
+    (0, "0:00"),
+    (65, "1:05"),
+    (299, "4:59"),
+    (1_500, "25:00"),
     (3_600, "60:00"),
-    (-1, "00:00")
+    (-1, "0:00")
 ])
 @MainActor
 func integerClockFormatting(seconds: Int, expected: String) {

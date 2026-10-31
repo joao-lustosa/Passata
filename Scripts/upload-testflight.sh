@@ -76,7 +76,12 @@ if [[ -n "$requested_build_number" ]]; then
     [[ "$requested_build_number" =~ ^[0-9]+$ ]] || { echo "Build number must be a positive integer." >&2; exit 2; }
     build_number="$requested_build_number"
 else
-    current_build_number="$(xcodebuild -project "$repository_root/Passata.xcodeproj" -scheme Passata -configuration Release -sdk iphoneos -showBuildSettings 2>/dev/null | awk -F ' = ' '/^[[:space:]]*CURRENT_PROJECT_VERSION = / { print $2; exit }')"
+    if ! build_settings="$(xcodebuild -project "$repository_root/Passata.xcodeproj" -scheme Passata -configuration Release -sdk iphoneos -showBuildSettings 2>/dev/null)"; then
+        echo "Could not read Xcode build settings to determine CURRENT_PROJECT_VERSION." >&2
+        exit 1
+    fi
+    current_build_number="$(awk -F ' = ' '/^[[:space:]]*CURRENT_PROJECT_VERSION = / { print $2; exit }' <<< "$build_settings")"
+    unset build_settings
     [[ "$current_build_number" =~ ^[0-9]+$ ]] || { echo "Could not determine CURRENT_PROJECT_VERSION from Xcode build settings." >&2; exit 1; }
     build_number="$((current_build_number + 1))"
 fi
@@ -156,17 +161,15 @@ else
     cp "$export_options" "$upload_options"
     /usr/libexec/PlistBuddy -c 'Set :destination upload' "$upload_options"
     export_log="$temporary_directory/export-upload.log"
-    if xcodebuild \
+    if run_xcodebuild "$export_log" \
         -exportArchive \
         -archivePath "$archive_path" \
         -exportOptionsPlist "$upload_options" \
-        "${signing_arguments[@]}" >"$export_log" 2>&1; then
-        sed -e "s/${ASC_KEY_ID}/[REDACTED]/g" -e "s/${ASC_ISSUER_ID}/[REDACTED]/g" "$export_log"
+        "${signing_arguments[@]}"; then
         actual_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_info")"
         echo "Upload submitted: version ${requested_marketing_version:-$actual_version}, build $build_number."
     else
         result=$?
-        sed -e "s/${ASC_KEY_ID}/[REDACTED]/g" -e "s/${ASC_ISSUER_ID}/[REDACTED]/g" "$export_log" >&2
         exit "$result"
     fi
 fi

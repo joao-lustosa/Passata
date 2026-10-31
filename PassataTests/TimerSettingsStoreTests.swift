@@ -268,6 +268,34 @@ final class TimerSettingsStoreTests: XCTestCase {
         }
     }
 
+    func testBackgroundCatchUpStartsANewOccurrenceAndAsksForItsDurationChange() {
+        let clock = SettingsTestClock(now: Date(timeIntervalSinceReferenceDate: 2_300))
+        let store = TimerSettingsStore(persister: SettingsSpy())
+        let engine = TimerEngine(
+            durationProvider: store,
+            dateProvider: clock,
+            persister: SettingsTestTimerStateStore(),
+            autoStartNext: true
+        )
+        store.engine = engine
+        engine.start()
+
+        XCTAssertTrue(store.typeDuration("26", affecting: .focus))
+        store.resolvePendingDurationChange(restartCurrentPhase: false)
+        let completedOccurrenceID = engine.phaseOccurrenceID
+        let focusEnd = clock.now.addingTimeInterval(TimeInterval(engine.currentPhaseDuration))
+        clock.now = focusEnd.addingTimeInterval(10)
+
+        engine.checkForCompletion()
+
+        XCTAssertEqual(engine.phase, .shortBreak)
+        XCTAssertEqual(engine.status, .running)
+        XCTAssertEqual(engine.phaseOccurrenceID, completedOccurrenceID + 1)
+        XCTAssertTrue(store.typeDuration("6", affecting: .shortBreak))
+        XCTAssertNotNil(store.pendingDurationChange)
+        XCTAssertEqual(store.settings.durations.shortBreakSeconds, 300)
+    }
+
     func testApplyNextSessionPersistsTheCapturedDurationForRelaunch() throws {
         let suite = "PassataTests.CapturedDurationRelaunch." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
